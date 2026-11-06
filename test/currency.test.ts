@@ -23,7 +23,7 @@ describe("Currency Management", () => {
     expect(inr).toContain("₹");
 
     const jpy = formatCurrency(1500, "JPY");
-    expect(jpy).toContain("¥");
+    expect(jpy.includes("¥") || jpy.includes("￥")).toBe(true);
     // JPY has 0 decimals
     expect(jpy).not.toContain(".00");
   });
