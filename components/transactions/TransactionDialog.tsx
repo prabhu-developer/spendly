@@ -86,18 +86,19 @@ export function TransactionDialog({
         notes: initialData.notes || "",
       });
     } else {
+      const defaultCat = categories.find((c) => c.type === "expense")?.id || "";
       reset({
         title: "",
         amount: "" as any,
         currency: defaultCurrency,
         type: "expense",
-        categoryId: availableCategories[0]?.id || "",
+        categoryId: defaultCat,
         date: format(new Date(), "yyyy-MM-dd"),
         paymentMethod: "Other",
         notes: "",
       });
     }
-  }, [initialData, open, defaultCurrency, reset]);
+  }, [initialData, open, defaultCurrency, reset, categories]);
 
   // Set first category when switching type if current category doesn't match
   const handleTypeChange = (type: "income" | "expense") => {

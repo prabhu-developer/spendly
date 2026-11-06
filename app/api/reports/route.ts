@@ -7,6 +7,8 @@ import { roundToTwoDecimals } from "@/lib/utils";
 import mongoose from "mongoose";
 import { subMonths, startOfMonth, endOfMonth, format } from "date-fns";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   try {
     const session = await getCurrentUser(req);

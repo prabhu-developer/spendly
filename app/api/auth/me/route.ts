@@ -3,6 +3,8 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import { User } from "@/models/User";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   try {
     const session = await getCurrentUser(req);

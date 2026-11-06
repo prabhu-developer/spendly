@@ -9,6 +9,8 @@ import { ExchangeRateService } from "@/lib/currency/exchangeRateService";
 import { roundToTwoDecimals } from "@/lib/utils";
 import mongoose from "mongoose";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   try {
     const session = await getCurrentUser(req);

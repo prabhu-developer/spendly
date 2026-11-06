@@ -7,6 +7,8 @@ import { transactionSchema } from "@/lib/validations/transaction";
 import { ExchangeRateService } from "@/lib/currency/exchangeRateService";
 import mongoose from "mongoose";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   try {
     const session = await getCurrentUser(req);

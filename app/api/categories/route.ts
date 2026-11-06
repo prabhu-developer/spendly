@@ -5,6 +5,8 @@ import { Category } from "@/models/Category";
 import { categorySchema } from "@/lib/validations/category";
 import mongoose from "mongoose";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   try {
     const session = await getCurrentUser(req);
