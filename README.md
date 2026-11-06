@@ -186,11 +186,11 @@ Fill in the required configuration:
 
 ```env
 # MongoDB Atlas Connection URI
-MONGODB_URI="mongodb+srv://<username>:<password>@cluster.mongodb.net/spendly?retryWrites=true&w=majority"
-MONGODB_DB_NAME="spendly"
+MONGODB_URI="mongodb+srv://<username>:<password>@cluster.mongodb.net/<database_name>?retryWrites=true&w=majority"
+MONGODB_DB_NAME="your_database_name_here"
 
 # Secret string used to sign JWT session cookies (min 32 characters)
-AUTH_SECRET="your-super-secret-auth-key-change-this-in-production-min32chars"
+AUTH_SECRET="your_auth_secret_key_here_min_32_characters"
 
 # Base URL of your app
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
@@ -215,6 +215,14 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+### 6. (Optional) Seed Demo Data
+
+To populate your database with a realistic demo account (`demo@spendly.app` / `Password123`), sample budgets, and 6 months of transactions:
+
+```bash
+npm run seed
+```
 
 ---
 
