@@ -43,3 +43,8 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #94A3B8;
 }
+
+
+iframe#nl-badge-frame {
+  display: none !important;
+}
