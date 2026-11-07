@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowUpRight, Download, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface InstallPromptEvent extends Event {
@@ -125,7 +126,7 @@ export function PWAControls() {
             </button>
           )}
           {(installPrompt || isIosInstall || installError) && (
-            <div className="rounded-xl border border-[#E8EDF4] bg-white p-3 shadow-lg">
+            <div >
               {(installPrompt || isIosInstall) && (
                 <button
                   type="button"
@@ -134,9 +135,20 @@ export function PWAControls() {
                       ? setShowIosInstructions((visible) => !visible)
                       : void installApp()
                   }
-                  className="min-h-11 rounded-lg bg-[#2878E5] px-4 text-sm font-semibold text-white"
+                  className="inline-flex min-h-11 items-center gap-2 rounded-full bg-[#2878E5] px-5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#1F65C2] hover:shadow-md active:scale-95"
                 >
-                  {isIosInstall ? "Add Spendly to Home Screen" : "Install Spendly"}
+                  {isIosInstall ? (
+                    <>
+                      <Plus size={17} strokeWidth={2.5} />
+                      Add to Home
+                      <ArrowUpRight size={15} />
+                    </>
+                  ) : (
+                    <>
+                      <Download size={17} strokeWidth={2.2} />
+                      Install
+                    </>
+                  )}
                 </button>
               )}
               {installError && (

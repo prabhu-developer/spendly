@@ -26,7 +26,7 @@ interface SidebarProps {
   onNavigate?: () => void;
 }
 
-const navItems = [
+export const navItems = [
   { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
   { label: "Transactions", href: "/dashboard/transactions", icon: Receipt },
   { label: "Budgets", href: "/dashboard/budgets", icon: PieChart },

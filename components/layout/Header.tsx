@@ -11,9 +11,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { apiClient } from "@/lib/api/client";
 import { format } from "date-fns";
+import { navItems } from "./Sidebar";
 
 interface HeaderProps {
   user?: {
@@ -30,10 +31,17 @@ export function Header({
   user,
   onOpenMobileMenu,
   onOpenAddTransaction,
-  title = "Overview",
+  title,
 }: HeaderProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [hasUnreadNotification, setHasUnreadNotification] = useState(true);
+  const activeNavItem = navItems.find(
+    (item) =>
+      pathname === item.href ||
+      (item.href !== "/dashboard" && pathname.startsWith(`${item.href}/`))
+  );
+  const pageTitle = title ?? activeNavItem?.label ?? "Overview";
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -67,7 +75,7 @@ export function Header({
         </Button>
 
         <div>
-          <h1 className="text-lg font-bold text-[#202735] sm:text-xl">{title}</h1>
+          <h1 className="text-lg font-bold text-[#202735] sm:text-xl">{pageTitle}</h1>
           {user && (
             <p className="hidden text-xs text-[#8992A3] sm:block">
               {getGreeting()}, <span className="font-medium text-[#202735]">{user.name}</span>
