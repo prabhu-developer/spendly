@@ -17,7 +17,7 @@ import {
 import { IconRenderer } from "@/components/shared/IconRenderer";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { TransactionDialog } from "@/components/transactions/TransactionDialog";
+import dynamic from "next/dynamic";
 import {
   Plus,
   Search,
@@ -38,6 +38,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+
+const TransactionDialog = dynamic(
+  () =>
+    import("@/components/transactions/TransactionDialog").then(
+      (module) => module.TransactionDialog
+    ),
+  { ssr: false }
+);
 
 export default function TransactionsPage() {
   const queryClient = useQueryClient();
@@ -84,6 +92,7 @@ export default function TransactionsPage() {
       "transactions",
       { search, typeFilter, categoryFilter, startDate, endDate, sortBy, sortOrder, page },
     ],
+    staleTime: 0,
     queryFn: async () => {
       const params = new URLSearchParams();
       if (search) params.set("search", search);
@@ -508,13 +517,15 @@ export default function TransactionsPage() {
       </div>
 
       {/* Add Dialog */}
-      <TransactionDialog
-        open={isAddOpen}
-        onOpenChange={setIsAddOpen}
-        categories={categories}
-        defaultCurrency={preferredCurrency}
-        onSuccess={handleRefresh}
-      />
+      {isAddOpen && (
+        <TransactionDialog
+          open={isAddOpen}
+          onOpenChange={setIsAddOpen}
+          categories={categories}
+          defaultCurrency={preferredCurrency}
+          onSuccess={handleRefresh}
+        />
+      )}
 
       {/* Edit Dialog */}
       {editingTransaction && (

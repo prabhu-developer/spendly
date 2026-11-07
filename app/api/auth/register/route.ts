@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: validation.error.errors[0]?.message || "Invalid input data",
+          error: validation.error.issues[0]?.message || "Invalid input data",
         },
         { status: 400 }
       );
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error("Registration error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Failed to register account" },
+      { success: false, error: "Failed to register account" },
       { status: 500 }
     );
   }

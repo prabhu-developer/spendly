@@ -7,15 +7,16 @@ import mongoose from "mongoose";
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await getCurrentUser(req);
     if (!session || !session.userId) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
-    if (!mongoose.Types.ObjectId.isValid(params.id)) {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json({ success: false, error: "Invalid budget ID" }, { status: 400 });
     }
 
@@ -23,7 +24,7 @@ export async function PUT(
     const validation = budgetSchema.safeParse(body);
     if (!validation.success) {
       return NextResponse.json(
-        { success: false, error: validation.error.errors[0]?.message || "Invalid input" },
+        { success: false, error: validation.error.issues[0]?.message || "Invalid input" },
         { status: 400 }
       );
     }
@@ -34,7 +35,7 @@ export async function PUT(
     const userObjectId = new mongoose.Types.ObjectId(session.userId);
 
     const budget = await Budget.findOne({
-      _id: params.id,
+      _id: id,
       userId: userObjectId,
     });
 
@@ -73,15 +74,16 @@ export async function PUT(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await getCurrentUser(req);
     if (!session || !session.userId) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
-    if (!mongoose.Types.ObjectId.isValid(params.id)) {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json({ success: false, error: "Invalid budget ID" }, { status: 400 });
     }
 
@@ -89,7 +91,7 @@ export async function DELETE(
     const userObjectId = new mongoose.Types.ObjectId(session.userId);
 
     const deleted = await Budget.findOneAndDelete({
-      _id: params.id,
+      _id: id,
       userId: userObjectId,
     });
 

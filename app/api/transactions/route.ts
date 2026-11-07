@@ -134,7 +134,7 @@ export async function POST(req: NextRequest) {
     const validation = transactionSchema.safeParse(body);
     if (!validation.success) {
       return NextResponse.json(
-        { success: false, error: validation.error.errors[0]?.message || "Invalid transaction data" },
+        { success: false, error: validation.error.issues[0]?.message || "Invalid transaction data" },
         { status: 400 }
       );
     }

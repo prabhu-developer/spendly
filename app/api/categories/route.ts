@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
     const validation = categorySchema.safeParse(body);
     if (!validation.success) {
       return NextResponse.json(
-        { success: false, error: validation.error.errors[0]?.message || "Invalid input" },
+        { success: false, error: validation.error.issues[0]?.message || "Invalid input" },
         { status: 400 }
       );
     }

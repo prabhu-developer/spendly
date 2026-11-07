@@ -1,14 +1,80 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 import { StatCard } from "@/components/shared/StatCard";
-import { DashboardCharts } from "@/features/dashboard/DashboardCharts";
 import { RecentTransactionsList } from "@/features/dashboard/RecentTransactionsList";
-import { TransactionDialog } from "@/components/transactions/TransactionDialog";
 import { Wallet, TrendingUp, TrendingDown, PiggyBank, Plus, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+const TransactionDialog = dynamic(
+  () =>
+    import("@/components/transactions/TransactionDialog").then(
+      (module) => module.TransactionDialog
+    ),
+  { ssr: false }
+);
+
+const DashboardCharts = dynamic(
+  () =>
+    import("@/features/dashboard/DashboardCharts").then(
+      (module) => module.DashboardCharts
+    ),
+  {
+    loading: DashboardChartSkeleton,
+  }
+);
+
+function DashboardChartSkeleton() {
+  return (
+    <div
+      className="grid grid-cols-1 gap-6 lg:grid-cols-3"
+      aria-label="Loading financial charts"
+      aria-busy="true"
+    >
+      <div className="h-80 animate-pulse rounded-xl border border-[#E8EDF4] bg-white lg:col-span-2" />
+      <div className="h-80 animate-pulse rounded-xl border border-[#E8EDF4] bg-white" />
+      <div className="h-64 animate-pulse rounded-xl border border-[#E8EDF4] bg-white lg:col-span-3" />
+    </div>
+  );
+}
+
+function DeferredDashboardCharts(
+  props: React.ComponentProps<typeof DashboardCharts>
+) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [shouldLoad, setShouldLoad] = useState(false);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    if (!("IntersectionObserver" in window)) {
+      setShouldLoad(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setShouldLoad(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "100px" }
+    );
+    observer.observe(container);
+
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={containerRef}>
+      {shouldLoad ? <DashboardCharts {...props} /> : <DashboardChartSkeleton />}
+    </div>
+  );
+}
 
 export default function DashboardOverviewPage() {
   const queryClient = useQueryClient();
@@ -17,6 +83,7 @@ export default function DashboardOverviewPage() {
   // 1. Fetch current user info
   const { data: userData } = useQuery({
     queryKey: ["currentUser"],
+    staleTime: 60_000,
     queryFn: async () => {
       const res = await apiClient.get("/auth/me");
       return res.data.user;
@@ -26,6 +93,7 @@ export default function DashboardOverviewPage() {
   // 2. Fetch categories
   const { data: categoriesData } = useQuery({
     queryKey: ["categories"],
+    staleTime: 60_000,
     queryFn: async () => {
       const res = await apiClient.get("/categories");
       return res.data.categories;
@@ -36,9 +104,11 @@ export default function DashboardOverviewPage() {
   const {
     data: reportsData,
     isLoading: isReportsLoading,
+    isError: isReportsError,
     refetch: refetchReports,
   } = useQuery({
     queryKey: ["reports"],
+    staleTime: 0,
     queryFn: async () => {
       const res = await apiClient.get("/reports");
       return res.data;
@@ -49,9 +119,11 @@ export default function DashboardOverviewPage() {
   const {
     data: txData,
     isLoading: isTxLoading,
+    isError: isTxError,
     refetch: refetchTx,
   } = useQuery({
     queryKey: ["recentTransactions"],
+    staleTime: 0,
     queryFn: async () => {
       const res = await apiClient.get("/transactions?limit=5");
       return res.data;
@@ -73,7 +145,8 @@ export default function DashboardOverviewPage() {
   const categories = categoriesData || [];
 
   const handleRefresh = () => {
-    queryClient.invalidateQueries();
+    void queryClient.invalidateQueries({ queryKey: ["reports"] });
+    void queryClient.invalidateQueries({ queryKey: ["recentTransactions"] });
   };
 
   return (
@@ -105,63 +178,122 @@ export default function DashboardOverviewPage() {
         </div>
       </div>
 
-      {/* Summary Stat Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Total Balance"
-          amount={totalBalance}
-          currency={preferredCurrency}
-          changePercent={summary.savingsChange}
-          icon={<Wallet className="h-5 w-5 text-[#2878E5]" />}
-          iconBgColor="bg-[#EBF3FC]"
-          type="default"
-        />
+      {isReportsError && (
+        <div
+          role="alert"
+          className="flex flex-col gap-2 rounded-lg border border-[#F07862]/30 bg-[#FDF1EE] p-4 text-sm text-[#202735] sm:flex-row sm:items-center sm:justify-between"
+        >
+          <span>Up-to-date financial totals are unavailable. Please try again.</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void refetchReports()}
+            className="w-fit border-[#F07862]/30"
+          >
+            Retry summary
+          </Button>
+        </div>
+      )}
 
-        <StatCard
-          title="Total Income"
-          amount={summary.totalIncome}
-          currency={preferredCurrency}
-          changePercent={summary.incomeChange}
-          icon={<TrendingUp className="h-5 w-5 text-[#269B72]" />}
-          iconBgColor="bg-[#EAF6F1]"
-          type="income"
-        />
+      {isTxError && (
+        <div
+          role="alert"
+          className="rounded-lg border border-[#F07862]/30 bg-[#FDF1EE] p-4 text-sm text-[#202735]"
+        >
+          Recent transactions are unavailable. Refresh to try again.
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void refetchTx()}
+            className="ml-3 border-[#F07862]/30"
+          >
+            Retry
+          </Button>
+        </div>
+      )}
 
-        <StatCard
-          title="Total Expenses"
-          amount={summary.totalExpenses}
-          currency={preferredCurrency}
-          changePercent={summary.expensesChange}
-          icon={<TrendingDown className="h-5 w-5 text-[#F07862]" />}
-          iconBgColor="bg-[#FDF1EE]"
-          type="expense"
-        />
+      {isReportsLoading ? (
+        <div
+          className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+          aria-label="Loading financial totals"
+          aria-busy="true"
+        >
+          {Array.from({ length: 4 }, (_, index) => (
+            <div
+              key={index}
+              className="h-32 animate-pulse rounded-xl border border-[#E8EDF4] bg-white"
+            />
+          ))}
+        </div>
+      ) : reportsData ? (
+        <>
+          {/* Summary Stat Cards */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              title="Total Balance"
+              amount={totalBalance}
+              currency={preferredCurrency}
+              changePercent={summary.savingsChange}
+              icon={<Wallet className="h-5 w-5 text-[#2878E5]" />}
+              iconBgColor="bg-[#EBF3FC]"
+              type="default"
+            />
 
-        <StatCard
-          title="Net Savings"
-          amount={summary.totalSavings}
-          currency={preferredCurrency}
-          changePercent={summary.savingsChange}
-          icon={<PiggyBank className="h-5 w-5 text-[#2878E5]" />}
-          iconBgColor="bg-[#EBF3FC]"
-          type="savings"
-        />
-      </div>
+            <StatCard
+              title="Total Income"
+              amount={summary.totalIncome}
+              currency={preferredCurrency}
+              changePercent={summary.incomeChange}
+              icon={<TrendingUp className="h-5 w-5 text-[#269B72]" />}
+              iconBgColor="bg-[#EAF6F1]"
+              type="income"
+            />
 
-      {/* Interactive Charts Section */}
-      <DashboardCharts
-        monthlyTrends={reportsData?.monthlyTrends || []}
-        categoryBreakdown={reportsData?.categoryBreakdown || []}
-        currency={preferredCurrency}
-      />
+            <StatCard
+              title="Total Expenses"
+              amount={summary.totalExpenses}
+              currency={preferredCurrency}
+              changePercent={summary.expensesChange}
+              icon={<TrendingDown className="h-5 w-5 text-[#F07862]" />}
+              iconBgColor="bg-[#FDF1EE]"
+              type="expense"
+            />
+
+            <StatCard
+              title="Net Savings"
+              amount={summary.totalSavings}
+              currency={preferredCurrency}
+              changePercent={summary.savingsChange}
+              icon={<PiggyBank className="h-5 w-5 text-[#2878E5]" />}
+              iconBgColor="bg-[#EBF3FC]"
+              type="savings"
+            />
+          </div>
+
+          {/* Interactive Charts Section */}
+          <DeferredDashboardCharts
+            monthlyTrends={reportsData.monthlyTrends || []}
+            categoryBreakdown={reportsData.categoryBreakdown || []}
+            currency={preferredCurrency}
+          />
+        </>
+      ) : null}
 
       {/* Recent Transactions List */}
-      <RecentTransactionsList
-        transactions={recentTransactions}
-        preferredCurrency={preferredCurrency}
-        onEdit={(tx) => setEditingTransaction(tx)}
-        onRefresh={handleRefresh}
-      />
+      {isTxLoading ? (
+        <div
+          className="h-64 animate-pulse rounded-xl border border-[#E8EDF4] bg-white"
+          aria-label="Loading recent transactions"
+          aria-busy="true"
+        />
+      ) : txData ? (
+        <RecentTransactionsList
+          transactions={recentTransactions}
+          preferredCurrency={preferredCurrency}
+          onEdit={(tx) => setEditingTransaction(tx)}
+          onRefresh={handleRefresh}
+        />
+      ) : null}
 
       {/* Edit Transaction Dialog */}
       {editingTransaction && (

@@ -7,7 +7,7 @@ export const transactionSchema = z.object({
     .max(150, "Title cannot exceed 150 characters")
     .trim(),
   amount: z
-    .number({ invalid_type_error: "Amount must be a number" })
+    .number({ error: "Amount must be a number" })
     .positive("Amount must be greater than zero")
     .max(999999999, "Amount is too large"),
   currency: z.enum([
@@ -31,4 +31,4 @@ export const transactionSchema = z.object({
   notes: z.string().max(500, "Notes cannot exceed 500 characters").optional().default(""),
 });
 
-export type TransactionInput = z.infer<typeof transactionSchema>;
+export type TransactionInput = z.input<typeof transactionSchema>;

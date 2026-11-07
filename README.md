@@ -114,11 +114,14 @@ spendly/
 │   │   ├── user/                      # Profile & password endpoints
 │   │   └── exchange-rates/            # Currency exchange API
 │   ├── globals.css
+│   ├── manifest.ts
+│   ├── offline/page.tsx
+│   ├── sw.ts
 │   ├── layout.tsx
 │   └── page.tsx                       # Landing page
 ├── components/
 │   ├── layout/                        # Sidebar, Header, Footer, Shell
-│   ├── providers/                     # React Query provider
+│   ├── providers/                     # React Query and PWA controls
 │   ├── shared/                        # StatCard, EmptyState, ConfirmDialog, IconRenderer
 │   ├── transactions/                  # Add/Edit Transaction Modal
 │   └── ui/                            # shadcn/ui primitives
@@ -189,8 +192,8 @@ Fill in the required configuration:
 MONGODB_URI="mongodb+srv://<username>:<password>@cluster.mongodb.net/<database_name>?retryWrites=true&w=majority"
 MONGODB_DB_NAME="your_database_name_here"
 
-# Secret string used to sign JWT session cookies (min 32 characters)
-AUTH_SECRET="your_auth_secret_key_here_min_32_characters"
+# Required: use a unique random secret of at least 32 characters
+AUTH_SECRET=""
 
 # Base URL of your app
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
@@ -198,6 +201,15 @@ NEXT_PUBLIC_APP_URL="http://localhost:3000"
 # Optional ExchangeRate-API key (if left blank, public live rates from open.er-api.com are used)
 EXCHANGE_RATE_API_KEY=""
 ```
+
+Generate a signing secret instead of reusing a sample value:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
+
+`AUTH_SECRET` is required; the app fails closed if it is missing or shorter than
+32 characters.
 
 ### 4. MongoDB Atlas Setup Instructions
 
@@ -267,6 +279,25 @@ Spendly is architected for seamless zero-config deployment to **Vercel**:
    - `NEXT_PUBLIC_APP_URL`
    - `EXCHANGE_RATE_API_KEY` (optional)
 4. Click **Deploy**. Vercel will run the production build (`npm run build`) and launch your application.
+
+---
+
+## Progressive Web App
+
+The production build uses Serwist to generate and register `/sw.js`. Service-worker
+generation is disabled during `npm run dev`; test installation and offline behavior
+with a production build (`npm run build` followed by `npm start`) over HTTPS or
+`localhost`.
+
+- Chromium browsers can install Spendly using the browser’s install prompt.
+- On iOS/iPadOS, open Spendly in Safari, tap **Share**, then **Add to Home Screen**.
+- A waiting service-worker update is applied only after choosing **Update Spendly**.
+- Offline mode shows a clear status and a static offline page. The app does not cache
+  authenticated pages, API responses, transactions, account details, credentials, or
+  session cookies. Financial features require a network connection; offline changes
+  are not queued or reported as synchronized.
+- Versioned Next.js static assets, local fonts, public app icons, and the manifest
+  may be cached with expiration. All `/api/*` responses are marked `private, no-store`.
 
 ---
 

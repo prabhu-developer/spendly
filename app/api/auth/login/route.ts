@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: validation.error.errors[0]?.message || "Invalid email or password",
+          error: validation.error.issues[0]?.message || "Invalid email or password",
         },
         { status: 400 }
       );

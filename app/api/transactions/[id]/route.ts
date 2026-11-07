@@ -9,21 +9,22 @@ import mongoose from "mongoose";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await getCurrentUser(req);
     if (!session || !session.userId) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
-    if (!mongoose.Types.ObjectId.isValid(params.id)) {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json({ success: false, error: "Invalid transaction ID" }, { status: 400 });
     }
 
     await connectToDatabase();
     const transaction = await Transaction.findOne({
-      _id: params.id,
+      _id: id,
       userId: new mongoose.Types.ObjectId(session.userId),
     }).populate("categoryId", "name icon color type");
 
@@ -66,15 +67,16 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await getCurrentUser(req);
     if (!session || !session.userId) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
-    if (!mongoose.Types.ObjectId.isValid(params.id)) {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json({ success: false, error: "Invalid transaction ID" }, { status: 400 });
     }
 
@@ -82,7 +84,7 @@ export async function PUT(
     const validation = transactionSchema.safeParse(body);
     if (!validation.success) {
       return NextResponse.json(
-        { success: false, error: validation.error.errors[0]?.message || "Invalid input" },
+        { success: false, error: validation.error.issues[0]?.message || "Invalid input" },
         { status: 400 }
       );
     }
@@ -94,7 +96,7 @@ export async function PUT(
 
     // Strict ownership verification: only update transaction owned by authenticated user
     const existingTransaction = await Transaction.findOne({
-      _id: params.id,
+      _id: id,
       userId: userObjectId,
     });
 
@@ -173,15 +175,16 @@ export async function PUT(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await getCurrentUser(req);
     if (!session || !session.userId) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
-    if (!mongoose.Types.ObjectId.isValid(params.id)) {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json({ success: false, error: "Invalid transaction ID" }, { status: 400 });
     }
 
@@ -189,7 +192,7 @@ export async function DELETE(
     const userObjectId = new mongoose.Types.ObjectId(session.userId);
 
     const deleted = await Transaction.findOneAndDelete({
-      _id: params.id,
+      _id: id,
       userId: userObjectId,
     });
 

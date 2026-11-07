@@ -3,7 +3,7 @@ import { z } from "zod";
 export const budgetSchema = z.object({
   categoryId: z.string().min(1, "Category is required"),
   amount: z
-    .number({ invalid_type_error: "Budget amount must be a number" })
+    .number({ error: "Budget amount must be a number" })
     .positive("Budget amount must be greater than zero")
     .max(999999999, "Amount is too large"),
   currency: z.enum([
@@ -22,4 +22,4 @@ export const budgetSchema = z.object({
   year: z.number().int().min(2000).max(2100),
 });
 
-export type BudgetInput = z.infer<typeof budgetSchema>;
+export type BudgetInput = z.input<typeof budgetSchema>;

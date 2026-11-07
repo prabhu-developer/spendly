@@ -25,7 +25,7 @@ export default async function HomePage() {
     <div className="flex min-h-screen flex-col justify-between bg-[#F3F6FC]">
       {/* Navigation Bar */}
       <header className="border-b border-[#E8EDF4] bg-white">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-3 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2.5">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#2878E5] text-white shadow-sm">
               <Wallet className="h-5 w-5" />
@@ -33,14 +33,14 @@ export default async function HomePage() {
             <span className="text-xl font-bold tracking-tight text-[#202735]">Spendly</span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 sm:gap-3">
             <Link href="/login">
-              <Button variant="ghost" className="text-xs font-semibold text-[#202735]">
+              <Button variant="ghost" className="h-9 px-2 text-xs font-semibold text-[#202735] sm:px-4">
                 Sign In
               </Button>
             </Link>
             <Link href="/register">
-              <Button className="bg-[#2878E5] text-xs font-semibold hover:bg-[#1F65C2]">
+              <Button className="h-9 bg-[#2878E5] px-2 text-xs font-semibold hover:bg-[#1F65C2] sm:px-4">
                 Get Started
               </Button>
             </Link>

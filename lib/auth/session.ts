@@ -15,7 +15,10 @@ export interface SessionPayload {
 }
 
 function getAuthSecret(): Uint8Array {
-  const secret = process.env.AUTH_SECRET || "spendly-super-secure-production-jwt-key-2026-min-32-chars";
+  const secret = process.env.AUTH_SECRET;
+  if (!secret || secret.length < 32) {
+    throw new Error("AUTH_SECRET must be configured with at least 32 characters");
+  }
   return new TextEncoder().encode(secret);
 }
 
@@ -34,8 +37,9 @@ export async function createSessionToken(payload: SessionPayload): Promise<strin
  * Verify JWT session token
  */
 export async function verifySessionToken(token: string): Promise<SessionPayload | null> {
+  const secret = getAuthSecret();
   try {
-    const { payload } = await jwtVerify(token, getAuthSecret());
+    const { payload } = await jwtVerify(token, secret);
     return payload as unknown as SessionPayload;
   } catch {
     return null;
@@ -84,7 +88,7 @@ export async function getCurrentUser(req?: NextRequest): Promise<SessionPayload 
     token = req.cookies.get(AUTH_COOKIE_NAME)?.value;
   } else {
     try {
-      const cookieStore = cookies();
+      const cookieStore = await cookies();
       token = cookieStore.get(AUTH_COOKIE_NAME)?.value;
     } catch {
       return null;

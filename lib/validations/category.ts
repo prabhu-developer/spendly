@@ -14,4 +14,4 @@ export const categorySchema = z.object({
     .default("#2878E5"),
 });
 
-export type CategoryInput = z.infer<typeof categorySchema>;
+export type CategoryInput = z.input<typeof categorySchema>;

@@ -30,6 +30,16 @@ export async function GET(req: NextRequest) {
 
     const filterStartDate = startDateParam ? new Date(startDateParam) : currentMonthStart;
     const filterEndDate = endDateParam ? new Date(endDateParam) : currentMonthEnd;
+    if (
+      Number.isNaN(filterStartDate.getTime()) ||
+      Number.isNaN(filterEndDate.getTime()) ||
+      filterStartDate > filterEndDate
+    ) {
+      return NextResponse.json(
+        { success: false, error: "Invalid report date range" },
+        { status: 400 }
+      );
+    }
     if (endDateParam && endDateParam.length <= 10) {
       filterEndDate.setHours(23, 59, 59, 999);
     }
@@ -39,22 +49,29 @@ export async function GET(req: NextRequest) {
     const prevPeriodEnd = new Date(filterStartDate.getTime() - 1);
     const prevPeriodStart = new Date(prevPeriodEnd.getTime() - periodDuration);
 
-    // Fetch exchange rates
-    const ratesData = await ExchangeRateService.getExchangeRates();
+    const sixMonthsAgo = startOfMonth(subMonths(now, 5));
+    const queryStartDate = prevPeriodStart < sixMonthsAgo ? prevPeriodStart : sixMonthsAgo;
+    const queryEndDate = filterEndDate > currentMonthEnd ? filterEndDate : currentMonthEnd;
 
-    // 1. Current period transactions
-    const currentTransactions = await Transaction.find({
-      userId: userObjectId,
-      date: { $gte: filterStartDate, $lte: filterEndDate },
-    })
-      .populate("categoryId", "name icon color type")
-      .lean();
+    const [ratesData, transactions] = await Promise.all([
+      ExchangeRateService.getExchangeRates(),
+      Transaction.find({
+        userId: userObjectId,
+        date: { $gte: queryStartDate, $lte: queryEndDate },
+      })
+        .select("amount currency type date categoryId exchangeRateSnapshot")
+        .populate("categoryId", "name color")
+        .lean(),
+    ]);
 
-    // 2. Previous period transactions
-    const prevTransactions = await Transaction.find({
-      userId: userObjectId,
-      date: { $gte: prevPeriodStart, $lte: prevPeriodEnd },
-    }).lean();
+    const currentTransactions = transactions.filter(
+      (transaction) =>
+        transaction.date >= filterStartDate && transaction.date <= filterEndDate
+    );
+    const prevTransactions = transactions.filter(
+      (transaction) =>
+        transaction.date >= prevPeriodStart && transaction.date <= prevPeriodEnd
+    );
 
     // Sum current period
     let totalIncome = 0;
@@ -126,13 +143,7 @@ export async function GET(req: NextRequest) {
       }))
       .sort((a, b) => b.amount - a.amount);
 
-    // 3. Last 6 months monthly trend data
-    const sixMonthsAgo = startOfMonth(subMonths(now, 5));
-    const trendTransactions = await Transaction.find({
-      userId: userObjectId,
-      date: { $gte: sixMonthsAgo, $lte: currentMonthEnd },
-    }).lean();
-
+    // Last 6 months monthly trend data
     const monthlyTrendMap = new Map<string, { month: string; income: number; expenses: number; savings: number }>();
 
     // Initialize 6 months slots
@@ -142,7 +153,7 @@ export async function GET(req: NextRequest) {
       monthlyTrendMap.set(key, { month: key, income: 0, expenses: 0, savings: 0 });
     }
 
-    for (const t of trendTransactions) {
+    for (const t of transactions) {
       const key = format(new Date(t.date), "MMM yyyy");
       if (monthlyTrendMap.has(key)) {
         const item = monthlyTrendMap.get(key)!;

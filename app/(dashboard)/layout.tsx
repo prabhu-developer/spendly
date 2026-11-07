@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import { Category } from "@/models/Category";
+import { QueryProvider } from "@/components/providers/QueryProvider";
 import mongoose from "mongoose";
 
 export default async function DashboardLayout({
@@ -17,29 +18,28 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  // Fetch categories for the current user to supply quick-add dialog
-  let categories: any[] = [];
-  try {
-    await connectToDatabase();
-    const userObjectId = new mongoose.Types.ObjectId(session.userId);
-    const cats = await Category.find({
-      $or: [{ userId: userObjectId }, { isSystem: true }],
-    }).sort({ name: 1 });
+  await connectToDatabase();
+  const userObjectId = new mongoose.Types.ObjectId(session.userId);
+  const cats = await Category.find({
+    $or: [{ userId: userObjectId }, { isSystem: true }],
+  })
+    .select("name type icon color")
+    .sort({ name: 1 })
+    .lean();
 
-    categories = cats.map((c) => ({
-      id: c._id.toString(),
-      name: c.name,
-      type: c.type,
-      icon: c.icon,
-      color: c.color,
-    }));
-  } catch (e) {
-    console.error("Failed to prefetch categories:", e);
-  }
+  const categories = cats.map((category) => ({
+    id: category._id.toString(),
+    name: category.name,
+    type: category.type,
+    icon: category.icon,
+    color: category.color,
+  }));
 
   return (
-    <DashboardShell user={session} initialCategories={categories}>
-      {children}
-    </DashboardShell>
+    <QueryProvider initialCategories={categories}>
+      <DashboardShell user={session} initialCategories={categories}>
+        {children}
+      </DashboardShell>
+    </QueryProvider>
   );
 }

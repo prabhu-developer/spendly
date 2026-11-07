@@ -3,18 +3,40 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, ReactNode } from "react";
 
-export function QueryProvider({ children }: { children: ReactNode }) {
+interface InitialCategory {
+  id: string;
+  name: string;
+  type: "income" | "expense";
+  icon: string;
+  color: string;
+}
+
+export function QueryProvider({
+  children,
+  initialCategories,
+}: {
+  children: ReactNode;
+  initialCategories: InitialCategory[];
+}) {
   const [queryClient] = useState(
-    () =>
-      new QueryClient({
+    () => {
+      const client = new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 1000 * 60, // 1 minute
-            refetchOnWindowFocus: false,
+            staleTime: 0,
+            gcTime: 1000 * 60,
+            refetchOnWindowFocus: true,
+            refetchOnReconnect: true,
             retry: 1,
           },
         },
-      })
+      });
+
+      client.setQueryData(["categories"], initialCategories);
+      client.setQueryDefaults(["categories"], { staleTime: 60_000 });
+      client.setQueryDefaults(["currentUser"], { staleTime: 60_000 });
+      return client;
+    }
   );
 
   return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
