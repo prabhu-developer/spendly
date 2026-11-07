@@ -30,6 +30,107 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+.spendly-boot-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  min-height: 100vh;
+  min-height: 100dvh;
+  place-items: center;
+  padding:
+    calc(1.5rem + env(safe-area-inset-top, 0px))
+    calc(1.5rem + env(safe-area-inset-right, 0px))
+    calc(1.5rem + env(safe-area-inset-bottom, 0px))
+    calc(1.5rem + env(safe-area-inset-left, 0px));
+  background: #F3F6FC;
+  opacity: 1;
+  transition: opacity 220ms ease;
+}
+
+.spendly-boot-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: spendly-boot-enter 480ms ease both;
+}
+
+.spendly-boot-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.spendly-boot-logo {
+  display: grid;
+  width: 4.5rem;
+  height: 4.5rem;
+  place-items: center;
+  border: 1px solid #2878E5;
+  border-radius: 1.25rem;
+  color: #2878E5;
+}
+
+.spendly-boot-title {
+  margin: 0;
+  color: #202735;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.2;
+}
+
+.spendly-boot-progress {
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-top: 2rem;
+  border: 2px solid #8992A3;
+  border-top-color: #2878E5;
+  border-radius: 50%;
+  animation: spendly-boot-spin 800ms linear infinite;
+}
+
+.spendly-boot-message {
+  margin: 0.875rem 0 0;
+  color: #8992A3;
+  font-size: 0.875rem;
+}
+
+.spendly-boot-screen-ready {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@keyframes spendly-boot-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes spendly-boot-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spendly-boot-screen,
+  .spendly-boot-content {
+    animation: none;
+    transition: none;
+  }
+
+  .spendly-boot-progress {
+    animation: none;
+  }
+}
+
 /* Custom scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
