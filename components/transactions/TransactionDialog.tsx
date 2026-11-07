@@ -1,16 +1,13 @@
 "use client";
 
-import React, { useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -20,10 +17,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { transactionSchema, TransactionInput } from "@/lib/validations/transaction";
-import { CURRENCY_LIST, SupportedCurrency } from "@/lib/currency/currencies";
 import { apiClient } from "@/lib/api/client";
+import { CURRENCY_LIST, SupportedCurrency } from "@/lib/currency/currencies";
+import { TransactionInput, transactionSchema } from "@/lib/validations/transaction";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
 
 export interface TransactionDialogProps {
   open: boolean;
@@ -140,22 +140,20 @@ export function TransactionDialog({
             <button
               type="button"
               onClick={() => handleTypeChange("expense")}
-              className={`rounded-md py-1.5 text-xs font-semibold transition-all ${
-                selectedType === "expense"
-                  ? "bg-white text-[#F07862] shadow-sm"
-                  : "text-[#8992A3] hover:text-[#202735]"
-              }`}
+              className={`rounded-md py-1.5 text-xs font-semibold transition-all ${selectedType === "expense"
+                ? "bg-white text-[#F07862] shadow-sm"
+                : "text-[#8992A3] hover:text-[#202735]"
+                }`}
             >
               Expense
             </button>
             <button
               type="button"
               onClick={() => handleTypeChange("income")}
-              className={`rounded-md py-1.5 text-xs font-semibold transition-all ${
-                selectedType === "income"
-                  ? "bg-white text-[#269B72] shadow-sm"
-                  : "text-[#8992A3] hover:text-[#202735]"
-              }`}
+              className={`rounded-md py-1.5 text-xs font-semibold transition-all ${selectedType === "income"
+                ? "bg-white text-[#269B72] shadow-sm"
+                : "text-[#8992A3] hover:text-[#202735]"
+                }`}
             >
               Income
             </button>
@@ -176,21 +174,6 @@ export function TransactionDialog({
 
           {/* Amount and Currency */}
           <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-2 space-y-1.5">
-              <Label htmlFor="amount">Amount</Label>
-              <Input
-                id="amount"
-                type="number"
-                step="any"
-                min="0.01"
-                placeholder="0.00"
-                {...register("amount", { valueAsNumber: true })}
-              />
-              {errors.amount && (
-                <p className="text-xs text-[#F07862]">{errors.amount.message}</p>
-              )}
-            </div>
-
             <div className="space-y-1.5">
               <Label htmlFor="currency">Currency</Label>
               <Select
@@ -208,6 +191,21 @@ export function TransactionDialog({
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="col-span-2 space-y-1.5">
+              <Label htmlFor="amount">Amount</Label>
+              <Input
+                id="amount"
+                type="number"
+                step="any"
+                min="0.01"
+                placeholder="0.00"
+                {...register("amount", { valueAsNumber: true })}
+              />
+              {errors.amount && (
+                <p className="text-xs text-[#F07862]">{errors.amount.message}</p>
+              )}
             </div>
           </div>
 

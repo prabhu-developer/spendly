@@ -1,7 +1,5 @@
 "use client";
 
-import React, { useState } from "react";
-import { Menu, Plus, Bell, Calendar as CalendarIcon, User as UserIcon, LogOut, Settings as SettingsIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,9 +9,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { usePathname, useRouter } from "next/navigation";
 import { apiClient } from "@/lib/api/client";
 import { format } from "date-fns";
+import { Bell, Calendar as CalendarIcon, LogOut, Menu, Plus, Settings as SettingsIcon, User as UserIcon } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { useState } from "react";
 import { navItems } from "./Sidebar";
 
 interface HeaderProps {
@@ -152,7 +152,7 @@ export function Header({
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-[#2878E5] p-0 font-semibold text-white hover:bg-[#1F65C2]"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-[#28d2e5] p-0 font-semibold text-white hover:bg-[#1F65C2]"
             >
               {user?.name ? user.name.charAt(0).toUpperCase() : <UserIcon className="h-4 w-4" />}
             </Button>

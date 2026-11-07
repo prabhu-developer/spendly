@@ -1,17 +1,17 @@
 "use client";
 
-import React, { useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { loginSchema, LoginInput } from "@/lib/validations/auth";
-import { apiClient } from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { apiClient } from "@/lib/api/client";
+import { LoginInput, loginSchema } from "@/lib/validations/auth";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertCircle, Lock, Mail } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -20,7 +20,7 @@ export default function LoginPage() {
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    formState: { errors, isLoading, isSubmitting },
   } = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -103,7 +103,7 @@ export default function LoginPage() {
           <Button
             type="submit"
             className="w-full bg-[#2878E5] hover:bg-[#1F65C2]"
-            disabled={isSubmitting}
+            disabled={isSubmitting || isLoading}
           >
             {isSubmitting ? "Signing In..." : "Sign In"}
           </Button>

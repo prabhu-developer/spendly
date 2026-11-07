@@ -43,7 +43,7 @@ export function ConfirmDialog({
             {description}
           </DialogDescription>
         </DialogHeader>
-        <DialogFooter className="mt-4 gap-2 sm:gap-0">
+        <DialogFooter className="mt-4">
           <Button
             type="button"
             variant="outline"
