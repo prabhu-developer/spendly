@@ -4,12 +4,14 @@ import { connectToDatabase } from "@/lib/db/mongodb";
 import { Transaction } from "@/models/Transaction";
 import { Category } from "@/models/Category";
 import { transactionSchema } from "@/lib/validations/transaction";
+import { withServerTiming } from "@/lib/api/performance";
 import { ExchangeRateService } from "@/lib/currency/exchangeRateService";
 import mongoose from "mongoose";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
+  const requestStartedAt = performance.now();
   try {
     const session = await getCurrentUser(req);
     if (!session || !session.userId) {
@@ -30,6 +32,8 @@ export async function GET(req: NextRequest) {
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "10", 10)));
     const skip = (page - 1) * limit;
+    const includeTotal = searchParams.get("includeTotal") !== "false";
+    const compact = searchParams.get("compact") === "true";
 
     const query: any = { userId: userObjectId };
 
@@ -66,15 +70,25 @@ export async function GET(req: NextRequest) {
       sortOption.date = sortOrder;
     }
 
+    const dataStartedAt = performance.now();
     const [total, transactions] = await Promise.all([
-      Transaction.countDocuments(query),
-      Transaction.find(query)
-        .populate("categoryId", "name icon color type")
-        .sort(sortOption)
-        .skip(skip)
-        .limit(limit)
-        .lean(),
+      includeTotal ? Transaction.countDocuments(query) : Promise.resolve(null),
+      (() => {
+        const transactionQuery = Transaction.find(query);
+        if (compact) {
+          transactionQuery.select(
+            "title amount currency type date categoryId paymentMethod notes"
+          );
+        }
+        return transactionQuery
+          .populate("categoryId", "name icon color type")
+          .sort(sortOption)
+          .skip(skip)
+          .limit(limit)
+          .lean();
+      })(),
     ]);
+    const dataDuration = performance.now() - dataStartedAt;
 
     const formattedTransactions = transactions.map((t: any) => ({
       id: t._id.toString(),
@@ -100,20 +114,25 @@ export async function GET(req: NextRequest) {
       date: t.date.toISOString(),
       paymentMethod: t.paymentMethod,
       notes: t.notes || "",
-      exchangeRateSnapshot: t.exchangeRateSnapshot,
-      createdAt: t.createdAt.toISOString(),
+      ...(!compact && {
+        exchangeRateSnapshot: t.exchangeRateSnapshot,
+        createdAt: t.createdAt.toISOString(),
+      }),
     }));
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       transactions: formattedTransactions,
       pagination: {
         page,
         limit,
-        total,
-        totalPages: Math.ceil(total / limit) || 1,
+        ...(total !== null && {
+          total,
+          totalPages: Math.ceil(total / limit) || 1,
+        }),
       },
     });
+    return withServerTiming(response, requestStartedAt, { data: dataDuration });
   } catch (error: any) {
     console.error("Get transactions error:", error);
     return NextResponse.json(

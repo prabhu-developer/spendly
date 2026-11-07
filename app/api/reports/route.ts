@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import { Transaction } from "@/models/Transaction";
 import { ExchangeRateService } from "@/lib/currency/exchangeRateService";
+import { withServerTiming } from "@/lib/api/performance";
 import { roundToTwoDecimals } from "@/lib/utils";
 import mongoose from "mongoose";
 import { subMonths, startOfMonth, endOfMonth, format } from "date-fns";
@@ -10,6 +11,7 @@ import { subMonths, startOfMonth, endOfMonth, format } from "date-fns";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
+  const requestStartedAt = performance.now();
   try {
     const session = await getCurrentUser(req);
     if (!session || !session.userId) {
@@ -53,32 +55,45 @@ export async function GET(req: NextRequest) {
     const queryStartDate = prevPeriodStart < sixMonthsAgo ? prevPeriodStart : sixMonthsAgo;
     const queryEndDate = filterEndDate > currentMonthEnd ? filterEndDate : currentMonthEnd;
 
+    const dataStartedAt = performance.now();
     const [ratesData, transactions] = await Promise.all([
       ExchangeRateService.getExchangeRates(),
       Transaction.find({
         userId: userObjectId,
         date: { $gte: queryStartDate, $lte: queryEndDate },
       })
-        .select("amount currency type date categoryId exchangeRateSnapshot")
+        .select("amount currency type date categoryId")
         .populate("categoryId", "name color")
         .lean(),
     ]);
-
-    const currentTransactions = transactions.filter(
-      (transaction) =>
-        transaction.date >= filterStartDate && transaction.date <= filterEndDate
-    );
-    const prevTransactions = transactions.filter(
-      (transaction) =>
-        transaction.date >= prevPeriodStart && transaction.date <= prevPeriodEnd
-    );
+    const dataDuration = performance.now() - dataStartedAt;
 
     // Sum current period
     let totalIncome = 0;
     let totalExpenses = 0;
+    let prevIncome = 0;
+    let prevExpenses = 0;
     const categoryBreakdownMap = new Map<string, { name: string; color: string; amount: number; count: number }>();
+    const monthlyTrendMap = new Map<string, { month: string; income: number; expenses: number; savings: number }>();
 
-    for (const t of currentTransactions) {
+    for (let i = 5; i >= 0; i--) {
+      const mDate = subMonths(now, i);
+      const key = format(mDate, "MMM yyyy");
+      monthlyTrendMap.set(key, { month: key, income: 0, expenses: 0, savings: 0 });
+    }
+
+    for (const t of transactions) {
+      const isCurrentPeriod =
+        t.date >= filterStartDate && t.date <= filterEndDate;
+      const isPreviousPeriod =
+        t.date >= prevPeriodStart && t.date <= prevPeriodEnd;
+      const monthlyTrend =
+        t.date >= sixMonthsAgo && t.date <= currentMonthEnd
+          ? monthlyTrendMap.get(format(t.date, "MMM yyyy"))
+          : undefined;
+
+      if (!isCurrentPeriod && !isPreviousPeriod && !monthlyTrend) continue;
+
       const converted = ExchangeRateService.convertWithSnapshot(
         t.amount,
         t.currency,
@@ -86,21 +101,39 @@ export async function GET(req: NextRequest) {
         ratesData.rates
       );
 
-      if (t.type === "income") {
-        totalIncome += converted;
-      } else {
-        totalExpenses += converted;
-        const cat = (t.categoryId as any) || { _id: "other", name: "Other", color: "#64748B" };
-        const catId = cat._id ? cat._id.toString() : "other";
-        const existing = categoryBreakdownMap.get(catId) || {
-          name: cat.name || "Other",
-          color: cat.color || "#64748B",
-          amount: 0,
-          count: 0,
-        };
-        existing.amount += converted;
-        existing.count += 1;
-        categoryBreakdownMap.set(catId, existing);
+      if (isCurrentPeriod) {
+        if (t.type === "income") {
+          totalIncome += converted;
+        } else {
+          totalExpenses += converted;
+          const cat = (t.categoryId as any) || { _id: "other", name: "Other", color: "#64748B" };
+          const catId = cat._id ? cat._id.toString() : "other";
+          const existing = categoryBreakdownMap.get(catId) || {
+            name: cat.name || "Other",
+            color: cat.color || "#64748B",
+            amount: 0,
+            count: 0,
+          };
+          existing.amount += converted;
+          existing.count += 1;
+          categoryBreakdownMap.set(catId, existing);
+        }
+      }
+
+      if (isPreviousPeriod) {
+        if (t.type === "income") {
+          prevIncome += converted;
+        } else {
+          prevExpenses += converted;
+        }
+      }
+
+      if (monthlyTrend) {
+        if (t.type === "income") {
+          monthlyTrend.income += converted;
+        } else {
+          monthlyTrend.expenses += converted;
+        }
       }
     }
 
@@ -109,22 +142,6 @@ export async function GET(req: NextRequest) {
     const totalSavings = roundToTwoDecimals(totalIncome - totalExpenses);
     const savingsRate = totalIncome > 0 ? Math.round((totalSavings / totalIncome) * 100) : 0;
 
-    // Sum previous period
-    let prevIncome = 0;
-    let prevExpenses = 0;
-    for (const t of prevTransactions) {
-      const converted = ExchangeRateService.convertWithSnapshot(
-        t.amount,
-        t.currency,
-        preferredCurrency,
-        ratesData.rates
-      );
-      if (t.type === "income") {
-        prevIncome += converted;
-      } else {
-        prevExpenses += converted;
-      }
-    }
     prevIncome = roundToTwoDecimals(prevIncome);
     prevExpenses = roundToTwoDecimals(prevExpenses);
     const prevSavings = roundToTwoDecimals(prevIncome - prevExpenses);
@@ -143,34 +160,6 @@ export async function GET(req: NextRequest) {
       }))
       .sort((a, b) => b.amount - a.amount);
 
-    // Last 6 months monthly trend data
-    const monthlyTrendMap = new Map<string, { month: string; income: number; expenses: number; savings: number }>();
-
-    // Initialize 6 months slots
-    for (let i = 5; i >= 0; i--) {
-      const mDate = subMonths(now, i);
-      const key = format(mDate, "MMM yyyy");
-      monthlyTrendMap.set(key, { month: key, income: 0, expenses: 0, savings: 0 });
-    }
-
-    for (const t of transactions) {
-      const key = format(new Date(t.date), "MMM yyyy");
-      if (monthlyTrendMap.has(key)) {
-        const item = monthlyTrendMap.get(key)!;
-        const converted = ExchangeRateService.convertWithSnapshot(
-          t.amount,
-          t.currency,
-          preferredCurrency,
-          ratesData.rates
-        );
-        if (t.type === "income") {
-          item.income += converted;
-        } else {
-          item.expenses += converted;
-        }
-      }
-    }
-
     const monthlyTrends = Array.from(monthlyTrendMap.values()).map((m) => ({
       month: m.month,
       income: roundToTwoDecimals(m.income),
@@ -178,7 +167,7 @@ export async function GET(req: NextRequest) {
       savings: roundToTwoDecimals(m.income - m.expenses),
     }));
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       currency: preferredCurrency,
       isEstimate: ratesData.isFallback,
@@ -198,6 +187,7 @@ export async function GET(req: NextRequest) {
         endDate: filterEndDate.toISOString(),
       },
     });
+    return withServerTiming(response, requestStartedAt, { data: dataDuration });
   } catch (error: any) {
     console.error("Get reports error:", error);
     return NextResponse.json(

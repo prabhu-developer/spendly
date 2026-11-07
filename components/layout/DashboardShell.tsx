@@ -6,7 +6,6 @@ import { Header } from "./Header";
 import { Footer } from "./Footer";
 import dynamic from "next/dynamic";
 import { X } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import type { SupportedCurrency } from "@/lib/currency/currencies";
 
@@ -42,12 +41,16 @@ export function DashboardShell({
 }: DashboardShellProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [addTxOpen, setAddTxOpen] = useState(false);
-  const router = useRouter();
   const queryClient = useQueryClient();
 
   const handleTxSuccess = () => {
-    queryClient.invalidateQueries();
-    router.refresh();
+    void Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["reports"] }),
+      queryClient.invalidateQueries({ queryKey: ["reportsDetail"] }),
+      queryClient.invalidateQueries({ queryKey: ["recentTransactions"] }),
+      queryClient.invalidateQueries({ queryKey: ["transactions"] }),
+      queryClient.invalidateQueries({ queryKey: ["budgets"] }),
+    ]);
   };
 
   return (

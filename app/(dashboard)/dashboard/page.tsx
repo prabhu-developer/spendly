@@ -125,7 +125,7 @@ export default function DashboardOverviewPage() {
     queryKey: ["recentTransactions"],
     staleTime: 0,
     queryFn: async () => {
-      const res = await apiClient.get("/transactions?limit=5");
+      const res = await apiClient.get("/transactions?limit=5&includeTotal=false&compact=true");
       return res.data;
     },
   });
@@ -145,8 +145,13 @@ export default function DashboardOverviewPage() {
   const categories = categoriesData || [];
 
   const handleRefresh = () => {
-    void queryClient.invalidateQueries({ queryKey: ["reports"] });
-    void queryClient.invalidateQueries({ queryKey: ["recentTransactions"] });
+    void Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["reports"] }),
+      queryClient.invalidateQueries({ queryKey: ["reportsDetail"] }),
+      queryClient.invalidateQueries({ queryKey: ["recentTransactions"] }),
+      queryClient.invalidateQueries({ queryKey: ["transactions"] }),
+      queryClient.invalidateQueries({ queryKey: ["budgets"] }),
+    ]);
   };
 
   return (

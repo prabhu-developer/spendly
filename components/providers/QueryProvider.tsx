@@ -11,12 +11,21 @@ interface InitialCategory {
   color: string;
 }
 
+interface InitialUser {
+  userId: string;
+  email: string;
+  name: string;
+  preferredCurrency: string;
+}
+
 export function QueryProvider({
   children,
   initialCategories,
+  initialUser,
 }: {
   children: ReactNode;
   initialCategories: InitialCategory[];
+  initialUser: InitialUser;
 }) {
   const [queryClient] = useState(
     () => {
@@ -32,9 +41,10 @@ export function QueryProvider({
         },
       });
 
-      client.setQueryData(["categories"], initialCategories);
       client.setQueryDefaults(["categories"], { staleTime: 60_000 });
       client.setQueryDefaults(["currentUser"], { staleTime: 60_000 });
+      client.setQueryData(["categories"], initialCategories);
+      client.setQueryData(["currentUser"], initialUser);
       return client;
     }
   );
