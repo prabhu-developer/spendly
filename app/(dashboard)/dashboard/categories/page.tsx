@@ -1,33 +1,149 @@
 "use client";
 
-import React, { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api/client";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { IconRenderer } from "@/components/shared/IconRenderer";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
-import { IconRenderer } from "@/components/shared/IconRenderer";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { Plus, Edit2, Trash2, Tags, Lock } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { apiClient } from "@/lib/api/client";
+import { useQuery } from "@tanstack/react-query";
+import { Edit2, Plus, Trash2, } from "lucide-react";
+import React, { useState } from "react";
 
-const AVAILABLE_ICONS = [
-  "Tag", "Briefcase", "Laptop", "Building2", "TrendingUp", "Coins",
-  "Utensils", "ShoppingBag", "Car", "Receipt", "Film", "HeartPulse",
-  "GraduationCap", "Plane", "Coffee", "Home", "Gift", "Wifi", "CreditCard"
+
+export const AVAILABLE_ICONS = [
+  // General
+  "Tag", "Briefcase", "Laptop", "Building2",
+  "TrendingUp", "TrendingDown", "Coins",
+
+  // Finance
+  "Wallet", "WalletCards", "Banknote",
+  "PiggyBank", "HandCoins", "CircleDollarSign",
+  "BadgeDollarSign", "Landmark", "Bank",
+  "CreditCard", "Receipt", "ReceiptText",
+
+  // Shopping
+  "ShoppingBag", "ShoppingCart", "ShoppingBasket",
+  "Store", "Gift", "Package", "Shirt",
+
+  // Food
+  "Utensils", "UtensilsCrossed", "Coffee",
+  "Pizza", "ChefHat", "ShoppingBasket",
+  "IceCreamCone", "Cake",
+
+  // Housing
+  "House", "Home", "Building", "Sofa",
+  "BedDouble", "Lightbulb", "Droplets",
+  "Refrigerator", "WashingMachine",
+
+  // Transport
+  "Car", "CarFront", "Bike", "Bus",
+  "Train", "Plane", "Fuel", "ParkingCircle",
+  "Luggage",
+
+  // Lifestyle
+  "Film", "Tv", "Gamepad2", "Music",
+  "Headphones", "Camera", "Smartphone",
+  "Wifi", "Shirt", "Watch",
+
+  // Health
+  "HeartPulse", "Stethoscope", "Pill",
+  "Hospital", "Dumbbell", "Activity",
+
+  // Education
+  "GraduationCap", "BookOpen", "Book",
+  "School", "Library", "Calculator",
+
+  // Income
+  "BriefcaseBusiness", "Handshake", "Factory",
+  "Globe", "Users", "Award", "Trophy",
+
+  // Bills & subscriptions
+  "FileText", "FileSpreadsheet", "CalendarDays",
+  "CalendarClock", "Repeat", "Zap", "ShieldCheck",
+
+  // Savings & investments
+  "Target", "Bitcoin", "Gem", "ChartPie",
+  "ChartLine", "ChartColumn", "Scale",
+
+  // Other
+  "Heart", "Dog", "Cat", "Baby",
+  "Flower2", "TreePine", "Wrench",
+  "Scissors", "MoreHorizontal"
 ];
 
-const PRESET_COLORS = [
-  "#2878E5", "#269B72", "#F07862", "#E9B949", "#EC4899",
-  "#8B5CF6", "#06B6D4", "#F97316", "#10B981", "#64748B"
+
+
+export const PRESET_COLORS = [
+  // Blues
+  "#2878E5",
+  "#3B82F6",
+  "#1D4ED8",
+  "#60A5FA",
+  "#0EA5E9",
+
+  // Greens
+  "#269B72",
+  "#10B981",
+  "#059669",
+  "#22C55E",
+  "#84CC16",
+
+  // Reds & Rose
+  "#EF4444",
+  "#F07862",
+  "#F43F5E",
+  "#EC4899",
+  "#BE123C",
+
+  // Oranges
+  "#F97316",
+  "#EA580C",
+  "#FB923C",
+  "#D97706",
+  "#F59E0B",
+
+  // Yellows
+  "#E9B949",
+  "#EAB308",
+  "#FACC15",
+  "#CA8A04",
+
+  // Purples & Violets
+  "#8B5CF6",
+  "#A855F7",
+  "#7C3AED",
+  "#C084FC",
+  "#6D28D9",
+
+  // Cyan & Teal
+  "#06B6D4",
+  "#0891B2",
+  "#14B8A6",
+  "#0D9488",
+  "#2DD4BF",
+
+  // Neutrals
+  "#64748B",
+  "#475569",
+  "#94A3B8",
+  "#78716C",
+  "#A8A29E",
+
+  // Special
+  "#6366F1",
+  "#D946EF",
+  "#A3E635",
+  "#FB7185",
+  "#14B8A6"
 ];
 
 export default function CategoriesPage() {
@@ -152,21 +268,19 @@ export default function CategoriesPage() {
       <div className="flex items-center gap-2 border-b border-[#E8EDF4] pb-3">
         <button
           onClick={() => setActiveTab("expense")}
-          className={`rounded-lg px-4 py-2 text-xs font-semibold transition-colors ${
-            activeTab === "expense"
-              ? "bg-[#2878E5] text-white"
-              : "bg-white text-[#8992A3] hover:text-[#202735] border border-[#E8EDF4]"
-          }`}
+          className={`rounded-lg px-4 py-2 text-xs font-semibold transition-colors ${activeTab === "expense"
+            ? "bg-[#2878E5] text-white"
+            : "bg-white text-[#8992A3] hover:text-[#202735] border border-[#E8EDF4]"
+            }`}
         >
           Expense Categories
         </button>
         <button
           onClick={() => setActiveTab("income")}
-          className={`rounded-lg px-4 py-2 text-xs font-semibold transition-colors ${
-            activeTab === "income"
-              ? "bg-[#2878E5] text-white"
-              : "bg-white text-[#8992A3] hover:text-[#202735] border border-[#E8EDF4]"
-          }`}
+          className={`rounded-lg px-4 py-2 text-xs font-semibold transition-colors ${activeTab === "income"
+            ? "bg-[#2878E5] text-white"
+            : "bg-white text-[#8992A3] hover:text-[#202735] border border-[#E8EDF4]"
+            }`}
         >
           Income Categories
         </button>
@@ -251,22 +365,20 @@ export default function CategoriesPage() {
                 <button
                   type="button"
                   onClick={() => setType("expense")}
-                  className={`rounded-md py-1.5 text-xs font-semibold ${
-                    type === "expense"
-                      ? "bg-white text-[#F07862] shadow-sm"
-                      : "text-[#8992A3]"
-                  }`}
+                  className={`rounded-md py-1.5 text-xs font-semibold ${type === "expense"
+                    ? "bg-white text-[#F07862] shadow-sm"
+                    : "text-[#8992A3]"
+                    }`}
                 >
                   Expense
                 </button>
                 <button
                   type="button"
                   onClick={() => setType("income")}
-                  className={`rounded-md py-1.5 text-xs font-semibold ${
-                    type === "income"
-                      ? "bg-white text-[#269B72] shadow-sm"
-                      : "text-[#8992A3]"
-                  }`}
+                  className={`rounded-md py-1.5 text-xs font-semibold ${type === "income"
+                    ? "bg-white text-[#269B72] shadow-sm"
+                    : "text-[#8992A3]"
+                    }`}
                 >
                   Income
                 </button>
@@ -294,11 +406,10 @@ export default function CategoriesPage() {
                     key={ic}
                     type="button"
                     onClick={() => setIcon(ic)}
-                    className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-all ${
-                      icon === ic
-                        ? "border-[#2878E5] bg-[#EBF3FC] text-[#2878E5]"
-                        : "border-transparent text-[#8992A3] hover:bg-[#F3F6FC]"
-                    }`}
+                    className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-all ${icon === ic
+                      ? "border-[#2878E5] bg-[#EBF3FC] text-[#2878E5]"
+                      : "border-transparent text-[#8992A3] hover:bg-[#F3F6FC]"
+                      }`}
                   >
                     <IconRenderer name={ic} className="h-4 w-4" />
                   </button>
@@ -315,9 +426,8 @@ export default function CategoriesPage() {
                     key={c}
                     type="button"
                     onClick={() => setColor(c)}
-                    className={`h-7 w-7 rounded-full border-2 transition-transform ${
-                      color === c ? "scale-110 border-[#202735]" : "border-transparent"
-                    }`}
+                    className={`h-7 w-7 rounded-full border-2 transition-transform ${color === c ? "scale-110 border-[#202735]" : "border-transparent"
+                      }`}
                     style={{ backgroundColor: c }}
                   />
                 ))}
