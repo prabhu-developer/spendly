@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
+import { isValidCurrency } from "@/lib/currency/currencies";
 import { StatCard } from "@/components/shared/StatCard";
 import { RecentTransactionsList } from "@/features/dashboard/RecentTransactionsList";
 import { Wallet, TrendingUp, TrendingDown, PiggyBank, Plus, RefreshCw } from "lucide-react";
@@ -131,6 +132,11 @@ export default function DashboardOverviewPage() {
   });
 
   const preferredCurrency = userData?.preferredCurrency || reportsData?.currency || "USD";
+  const editingCurrency = isValidCurrency(userData?.preferredCurrency)
+    ? userData.preferredCurrency
+    : isValidCurrency(editingTransaction?.currency)
+      ? editingTransaction.currency
+      : null;
   const summary = reportsData?.summary || {
     totalIncome: 0,
     totalExpenses: 0,
@@ -301,12 +307,12 @@ export default function DashboardOverviewPage() {
       ) : null}
 
       {/* Edit Transaction Dialog */}
-      {editingTransaction && (
+      {editingTransaction && editingCurrency && (
         <TransactionDialog
           open={Boolean(editingTransaction)}
           onOpenChange={(open) => !open && setEditingTransaction(null)}
           categories={categories}
-          defaultCurrency={preferredCurrency}
+          defaultCurrency={editingCurrency}
           initialData={editingTransaction}
           onSuccess={handleRefresh}
         />

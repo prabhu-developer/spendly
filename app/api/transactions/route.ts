@@ -3,9 +3,11 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import { Transaction } from "@/models/Transaction";
 import { Category } from "@/models/Category";
+import { User } from "@/models/User";
 import { transactionSchema } from "@/lib/validations/transaction";
 import { withServerTiming } from "@/lib/api/performance";
 import { ExchangeRateService } from "@/lib/currency/exchangeRateService";
+import { isValidCurrency } from "@/lib/currency/currencies";
 import mongoose from "mongoose";
 
 export const dynamic = "force-dynamic";
@@ -158,10 +160,24 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { title, amount, currency, type, categoryId, date, paymentMethod, notes } = validation.data;
+    const { title, amount, type, categoryId, date, paymentMethod, notes } = validation.data;
 
     await connectToDatabase();
     const userObjectId = new mongoose.Types.ObjectId(session.userId);
+    const user = await User.findById(userObjectId).select("preferredCurrency").lean();
+    if (!user) {
+      return NextResponse.json({ success: false, error: "User not found" }, { status: 404 });
+    }
+    if (!isValidCurrency(user.preferredCurrency)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Preferred currency is not configured. Update it in Account Settings.",
+        },
+        { status: 400 }
+      );
+    }
+    const currency = user.preferredCurrency;
 
     // Validate category exists and is accessible by this user
     if (!mongoose.Types.ObjectId.isValid(categoryId)) {

@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
-import { formatCurrency } from "@/lib/currency/currencies";
+import { formatCurrency, isValidCurrency } from "@/lib/currency/currencies";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -21,8 +21,6 @@ import dynamic from "next/dynamic";
 import {
   Plus,
   Search,
-  Filter,
-  ArrowUpDown,
   Edit2,
   Trash2,
   ArrowUpRight,
@@ -32,6 +30,7 @@ import {
   Eye,
 } from "lucide-react";
 import { format } from "date-fns";
+import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -49,6 +48,7 @@ const TransactionDialog = dynamic(
 
 export default function TransactionsPage() {
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   // Filters & State
   const [search, setSearch] = useState("");
@@ -62,7 +62,6 @@ export default function TransactionsPage() {
   const limit = 10;
 
   // Modals
-  const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<any | null>(null);
   const [viewingTransaction, setViewingTransaction] = useState<any | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
@@ -110,7 +109,12 @@ export default function TransactionsPage() {
     },
   });
 
-  const preferredCurrency = userData?.preferredCurrency || "USD";
+  const preferredCurrency = isValidCurrency(userData?.preferredCurrency)
+    ? userData.preferredCurrency
+    : null;
+  const editingCurrency = preferredCurrency || (
+    isValidCurrency(editingTransaction?.currency) ? editingTransaction.currency : null
+  );
   const categories = categoriesData || [];
   const transactions = transactionsData?.transactions || [];
   const pagination = transactionsData?.pagination || { page: 1, totalPages: 1, total: 0 };
@@ -148,7 +152,7 @@ export default function TransactionsPage() {
         </div>
 
         <Button
-          onClick={() => setIsAddOpen(true)}
+          onClick={() => router.push("/dashboard/transactions/new")}
           className="gap-1.5 bg-[#2878E5] hover:bg-[#1F65C2]"
         >
           <Plus className="h-4 w-4" />
@@ -300,7 +304,7 @@ export default function TransactionsPage() {
             title="No transactions found"
             description="Try adjusting your search filters or click below to record a new transaction."
             actionLabel="Add Transaction"
-            onAction={() => setIsAddOpen(true)}
+            onAction={() => router.push("/dashboard/transactions/new")}
           />
         ) : (
           <>
@@ -516,24 +520,13 @@ export default function TransactionsPage() {
         )}
       </div>
 
-      {/* Add Dialog */}
-      {isAddOpen && (
-        <TransactionDialog
-          open={isAddOpen}
-          onOpenChange={setIsAddOpen}
-          categories={categories}
-          defaultCurrency={preferredCurrency}
-          onSuccess={handleRefresh}
-        />
-      )}
-
       {/* Edit Dialog */}
-      {editingTransaction && (
+      {editingTransaction && editingCurrency && (
         <TransactionDialog
           open={Boolean(editingTransaction)}
           onOpenChange={(open) => !open && setEditingTransaction(null)}
           categories={categories}
-          defaultCurrency={preferredCurrency}
+          defaultCurrency={editingCurrency}
           initialData={editingTransaction}
           onSuccess={handleRefresh}
         />

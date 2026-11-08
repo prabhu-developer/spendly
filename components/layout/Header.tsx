@@ -23,14 +23,12 @@ interface HeaderProps {
     preferredCurrency: string;
   } | null;
   onOpenMobileMenu?: () => void;
-  onOpenAddTransaction?: () => void;
   title?: string;
 }
 
 export function Header({
   user,
   onOpenMobileMenu,
-  onOpenAddTransaction,
   title,
 }: HeaderProps) {
   const router = useRouter();
@@ -136,16 +134,14 @@ export function Header({
         </DropdownMenu>
 
         {/* Quick Add Transaction Button */}
-        {onOpenAddTransaction && (
-          <Button
-            onClick={onOpenAddTransaction}
-            className="h-9 gap-1.5 rounded-lg bg-[#2878E5] px-3 text-xs font-medium hover:bg-[#1F65C2] sm:px-4 sm:text-sm"
-          >
-            <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">Add Transaction</span>
-            <span className="sm:hidden">Add</span>
-          </Button>
-        )}
+        <Button
+          onClick={() => router.push("/dashboard/transactions/new")}
+          className="h-9 gap-1.5 rounded-lg bg-[#2878E5] px-3 text-xs font-medium hover:bg-[#1F65C2] sm:px-4 sm:text-sm"
+        >
+          <Plus className="h-4 w-4" />
+          <span className="hidden sm:inline">Add Transaction</span>
+          <span className="sm:hidden">Add</span>
+        </Button>
 
         {/* User profile menu */}
         <DropdownMenu>

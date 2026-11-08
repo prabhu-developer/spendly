@@ -14,6 +14,12 @@ describe("Currency Management", () => {
     }
   });
 
+  it("rejects missing and unsupported currency preferences", () => {
+    expect(isValidCurrency(undefined)).toBe(false);
+    expect(isValidCurrency(null)).toBe(false);
+    expect(isValidCurrency("XYZ")).toBe(false);
+  });
+
   it("properly formats currencies with appropriate symbols and decimals", () => {
     const usd = formatCurrency(1250.5, "USD");
     expect(usd).toContain("$");

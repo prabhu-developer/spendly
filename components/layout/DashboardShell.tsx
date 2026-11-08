@@ -4,18 +4,8 @@ import React, { useState } from "react";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { Footer } from "./Footer";
-import dynamic from "next/dynamic";
 import { X } from "lucide-react";
-import { useQueryClient } from "@tanstack/react-query";
 import type { SupportedCurrency } from "@/lib/currency/currencies";
-
-const TransactionDialog = dynamic(
-  () =>
-    import("@/components/transactions/TransactionDialog").then(
-      (module) => module.TransactionDialog
-    ),
-  { ssr: false }
-);
 
 interface DashboardShellProps {
   user: {
@@ -24,34 +14,14 @@ interface DashboardShellProps {
     name: string;
     preferredCurrency: SupportedCurrency;
   };
-  initialCategories: Array<{
-    id: string;
-    name: string;
-    type: "income" | "expense";
-    icon: string;
-    color: string;
-  }>;
   children: React.ReactNode;
 }
 
 export function DashboardShell({
   user,
-  initialCategories,
   children,
 }: DashboardShellProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [addTxOpen, setAddTxOpen] = useState(false);
-  const queryClient = useQueryClient();
-
-  const handleTxSuccess = () => {
-    void Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["reports"] }),
-      queryClient.invalidateQueries({ queryKey: ["reportsDetail"] }),
-      queryClient.invalidateQueries({ queryKey: ["recentTransactions"] }),
-      queryClient.invalidateQueries({ queryKey: ["transactions"] }),
-      queryClient.invalidateQueries({ queryKey: ["budgets"] }),
-    ]);
-  };
 
   return (
     <div className="flex min-h-screen bg-[#F3F6FC]">
@@ -89,7 +59,6 @@ export function DashboardShell({
         <Header
           user={user}
           onOpenMobileMenu={() => setMobileMenuOpen(true)}
-          onOpenAddTransaction={() => setAddTxOpen(true)}
         />
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8">
@@ -99,16 +68,6 @@ export function DashboardShell({
         <Footer />
       </div>
 
-      {/* Global Add Transaction Dialog */}
-      {addTxOpen && (
-        <TransactionDialog
-          open={addTxOpen}
-          onOpenChange={setAddTxOpen}
-          categories={initialCategories}
-          defaultCurrency={user.preferredCurrency}
-          onSuccess={handleTxSuccess}
-        />
-      )}
     </div>
   );
 }

@@ -37,7 +37,7 @@ export default async function DashboardLayout({
 
   return (
     <QueryProvider initialCategories={categories} initialUser={session}>
-      <DashboardShell user={session} initialCategories={categories}>
+      <DashboardShell user={session}>
         {children}
       </DashboardShell>
     </QueryProvider>

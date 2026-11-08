@@ -33,8 +33,11 @@ export const SUPPORTED_CURRENCIES: Record<SupportedCurrency, CurrencyConfig> = {
 
 export const CURRENCY_LIST = Object.values(SUPPORTED_CURRENCIES);
 
-export function isValidCurrency(code: string): code is SupportedCurrency {
-  return code in SUPPORTED_CURRENCIES;
+export function isValidCurrency(code: unknown): code is SupportedCurrency {
+  return (
+    typeof code === "string" &&
+    Object.prototype.hasOwnProperty.call(SUPPORTED_CURRENCIES, code)
+  );
 }
 
 /**
