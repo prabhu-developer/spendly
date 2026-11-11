@@ -24,7 +24,7 @@ async function addTransaction(page: Page, title: string, amount: string, opts: {
     await page.getByLabel("Account (optional)").click();
     await page.getByRole("option", { name: new RegExp(opts.account) }).click();
   }
-  await page.getByRole("button", { name: "Add Transaction" }).click();
+  await page.locator("#main-content").getByRole("button", { name: "Add Transaction" }).click();
 }
 
 test.describe("Spendly core flows", () => {
@@ -61,7 +61,7 @@ test.describe("Spendly core flows", () => {
     await page.getByLabel("Search transactions").fill("(Starbucks)");
     await expect(page).toHaveURL(/search=%28Starbucks%29/);
     await expect(page.getByText("1 transaction", { exact: true })).toBeVisible();
-    await expect(page.getByRole("cell", { name: /Coffee \(Starbucks\)/ })).toBeVisible();
+    await expect(page.getByRole("cell", { name: "Coffee (Starbucks)", exact: true })).toBeVisible();
 
     // Drill-down style URL with account filter
     await page.getByRole("button", { name: "Clear all" }).click();
@@ -102,7 +102,7 @@ test.describe("Spendly core flows", () => {
     await context.setOffline(true);
     await page.getByLabel("Title / Description").fill("Offline taxi");
     await page.getByLabel("Amount").fill("18");
-    await page.getByRole("button", { name: "Add Transaction" }).click();
+    await page.locator("#main-content").getByRole("button", { name: "Add Transaction" }).click();
     await expect(page.getByText("Saved offline").first()).toBeVisible();
 
     await context.setOffline(false);
@@ -146,7 +146,7 @@ test.describe("Spendly core flows", () => {
     const cacheNames = await page.evaluate(() => caches.keys());
     for (const name of cacheNames) {
       const keys = await page.evaluate(async (n) => (await (await caches.open(n)).keys()).map((r) => r.url), name);
-      expect(keys.filter((u) => u.includes("/api/"))).toEqual([]);
+      expect(keys.filter((u) => new URL(u).pathname.startsWith("/api/"))).toEqual([]);
     }
   });
 
@@ -163,7 +163,11 @@ test.describe("Spendly core flows", () => {
         .analyze();
       const serious = results.violations
         .filter((v) => v.impact === "serious" || v.impact === "critical")
-        .map((v) => `${path}: ${v.id} — ${v.help} (${v.nodes.length})`);
+        .map(
+          (v) =>
+            `${path}: ${v.id} — ${v.help}\n` +
+            v.nodes.map((n) => `    ${n.html.slice(0, 160)} :: ${n.failureSummary?.split("\n").slice(1).join(" ")}`).join("\n")
+        );
       expect(serious, serious.join("\n")).toEqual([]);
     }
   });
@@ -178,11 +182,11 @@ test.describe("mobile @mobile", () => {
     await page.waitForURL("**/transactions/new");
     await page.getByLabel("Title / Description").fill("Bus ticket");
     await page.getByLabel("Amount").fill("2.5");
-    await page.getByRole("button", { name: "Add Transaction" }).click();
+    await page.locator("#main-content").getByRole("button", { name: "Add Transaction" }).click();
     await expect(page.getByText("Transaction added").first()).toBeVisible();
 
     await nav.getByRole("link", { name: "Activity" }).click();
-    await expect(page.getByText("Bus ticket")).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Bus ticket/ })).toBeVisible();
     // No horizontal page scroll at phone width
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(1);

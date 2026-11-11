@@ -237,7 +237,11 @@ export function ReportCharts({
                       className="cursor-pointer focus:outline-none"
                     >
                       {categoryBreakdown.map((entry) => (
-                        <Cell key={entry.id} fill={entry.color || CHART_COLORS.primary} />
+                        <Cell
+                          key={entry.id}
+                          fill={entry.color || CHART_COLORS.primary}
+                          aria-label={`${entry.name}: ${Math.round(entry.percentage ?? 0)}% of spending — show transactions`}
+                        />
                       ))}
                     </Pie>
                     <Tooltip content={<ChartTooltip currency={currency} showPercentOf={categoryBreakdown.reduce((a, c) => a + c.amount, 0)} />} />

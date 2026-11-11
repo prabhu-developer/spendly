@@ -25,7 +25,9 @@ const config: Config = {
           foreground: "#FFFFFF",
           hover: "#1F65C2",
           light: "#EBF3FC",
-          text: "#1B6DDE",
+          text: "#1A68D4",
+          // Filled surfaces with white text: same hue as DEFAULT, deepened to pass AA (4.6:1)
+          strong: "#1B6DDE",
         },
         main: "#202735",
         muted: {
@@ -42,13 +44,13 @@ const config: Config = {
           DEFAULT: "#269B72",
           light: "#EAF6F1",
           hover: "#208461",
-          text: "#1F805E",
+          text: "#1D7656",
         },
         expense: {
           DEFAULT: "#F07862",
           light: "#FDF1EE",
           hover: "#D9634E",
-          text: "#BF4A35",
+          text: "#B4432F",
         },
         warning: {
           DEFAULT: "#E9B949",

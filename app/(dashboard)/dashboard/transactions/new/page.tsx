@@ -62,7 +62,7 @@ export default function NewTransactionPage() {
             className="space-y-3 rounded-lg border border-expense/30 bg-expense-light p-4 text-sm text-main"
           >
             <p>Your preferred currency is not configured. Choose one in Account Settings before adding a transaction.</p>
-            <Button asChild className="min-h-11 bg-primary hover:bg-primary-hover">
+            <Button asChild className="min-h-11">
               <Link href="/dashboard/settings">Open Account Settings</Link>
             </Button>
           </div>
@@ -71,7 +71,7 @@ export default function NewTransactionPage() {
             <p className="text-sm text-muted-foreground">
               Add a category before recording a transaction.
             </p>
-            <Button asChild className="min-h-11 bg-primary hover:bg-primary-hover">
+            <Button asChild className="min-h-11">
               <Link href="/dashboard/categories">Manage Categories</Link>
             </Button>
           </div>

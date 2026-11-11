@@ -209,7 +209,7 @@ export default function SettingsPage() {
                 <Button
                   type="submit"
                   disabled={isUpdatingProfile}
-                  className="bg-primary hover:bg-primary-hover"
+                  
                 >
                   {isUpdatingProfile ? "Saving..." : "Save Preferences"}
                 </Button>
@@ -282,7 +282,7 @@ export default function SettingsPage() {
                 <Button
                   type="submit"
                   disabled={isUpdatingPassword}
-                  className="bg-primary hover:bg-primary-hover"
+                  
                 >
                   {isUpdatingPassword ? "Updating..." : "Update Password"}
                 </Button>
