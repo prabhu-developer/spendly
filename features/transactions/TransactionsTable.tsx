@@ -153,10 +153,13 @@ function TransactionsTableImpl({
           return (
             <Badge
               variant="secondary"
-              className="max-w-full gap-1 truncate font-normal"
-              style={{ backgroundColor: `${c.color || "#2878E5"}18`, color: c.color || "#2878E5" }}
+              className="max-w-full gap-1 truncate font-normal text-main"
+              style={{ backgroundColor: `${c.color || "#2878E5"}18` }}
             >
-              <IconRenderer name={c.icon || "Tag"} className="h-3 w-3 shrink-0" />
+              {/* Category color on the icon only: user-chosen colors can't guarantee text contrast */}
+              <span style={{ color: c.color || "#2878E5" }} className="inline-flex shrink-0">
+                <IconRenderer name={c.icon || "Tag"} className="h-3 w-3" />
+              </span>
               <span className="truncate">{c.name}</span>
             </Badge>
           );

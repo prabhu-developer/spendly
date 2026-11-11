@@ -194,7 +194,7 @@ export default function BudgetsPage() {
             value={selectedMonth.toString()}
             onValueChange={(val) => setSelectedMonth(parseInt(val, 10))}
           >
-            <SelectTrigger className="h-9 w-36 text-xs">
+            <SelectTrigger className="h-9 w-36 text-xs" aria-label="Budget month">
               <Calendar className="mr-1.5 h-3.5 w-3.5 text-primary-text" />
               <SelectValue />
             </SelectTrigger>
@@ -212,7 +212,7 @@ export default function BudgetsPage() {
             value={selectedYear.toString()}
             onValueChange={(val) => setSelectedYear(parseInt(val, 10))}
           >
-            <SelectTrigger className="h-9 w-24 text-xs">
+            <SelectTrigger className="h-9 w-24 text-xs" aria-label="Budget year">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -226,7 +226,7 @@ export default function BudgetsPage() {
 
           <Button
             onClick={openCreateDialog}
-            className="gap-1.5 bg-primary hover:bg-primary-hover"
+            className="gap-1.5"
           >
             <Plus className="h-4 w-4" />
             Set Budget
@@ -467,7 +467,7 @@ export default function BudgetsPage() {
               </Button>
               <Button
                 type="submit"
-                className="bg-primary hover:bg-primary-hover"
+                
                 disabled={isSubmitting}
               >
                 {isSubmitting ? "Saving..." : editingBudget ? "Update Budget" : "Create Budget"}

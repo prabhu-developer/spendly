@@ -126,13 +126,13 @@ export function RecentTransactionsList({
                       <td className="py-3">
                         <Badge
                           variant="secondary"
-                          className="gap-1 font-normal"
-                          style={{
-                            backgroundColor: `${t.category?.color || "#2878E5"}15`,
-                            color: t.category?.color || "#2878E5",
-                          }}
+                          className="gap-1 font-normal text-main"
+                          style={{ backgroundColor: `${t.category?.color || "#2878E5"}15` }}
                         >
-                          <IconRenderer name={t.category?.icon || "Tag"} className="h-3 w-3" />
+                          {/* Category color on the icon only: user-chosen colors can't guarantee text contrast */}
+                          <span style={{ color: t.category?.color || "#2878E5" }} className="inline-flex">
+                            <IconRenderer name={t.category?.icon || "Tag"} className="h-3 w-3" />
+                          </span>
                           {t.category?.name || "General"}
                         </Badge>
                       </td>

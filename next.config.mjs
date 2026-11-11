@@ -5,6 +5,13 @@ const withSerwist = withSerwistInit({
   swDest: "public/sw.js",
   disable: process.env.NODE_ENV === "development",
   additionalPrecacheEntries: [{ url: "/offline", revision: "1" }],
+  // Route-handler chunks (app/api/**) are never loaded by the browser — don't precache them
+  manifestTransforms: [
+    async (entries) => ({
+      manifest: entries.filter((entry) => !/\/chunks\/app\/api\//.test(entry.url)),
+      warnings: [],
+    }),
+  ],
 });
 
 const isDev = process.env.NODE_ENV !== "production";

@@ -102,7 +102,7 @@ export function Sidebar({ user, className, onNavigate }: SidebarProps) {
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                   isActive
-                    ? "bg-primary text-white"
+                    ? "bg-primary-strong text-white"
                     : "text-main hover:bg-muted hover:text-primary-text"
                 )}
               >

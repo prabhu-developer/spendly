@@ -14,13 +14,24 @@ const env = {
   PORT,
 };
 
-const server = spawn("npx", ["next", "start", "-p", PORT], { env, stdio: ["ignore", "pipe", "pipe"] });
+// Refuse to run against a stale server left on the port
+try {
+  await fetch(`http://localhost:${PORT}/login`);
+  console.error(`Port ${PORT} is already in use — stop the existing server first.`);
+  await mongod.stop();
+  process.exit(1);
+} catch {}
+
+// detached → own process group, so we can stop npx *and* the next-server child
+const server = spawn("npx", ["next", "start", "-p", PORT], { env, stdio: ["ignore", "pipe", "pipe"], detached: true });
 let serverLog = "";
 server.stdout.on("data", (d) => (serverLog += d));
 server.stderr.on("data", (d) => (serverLog += d));
 
 const cleanup = async (code) => {
-  server.kill("SIGTERM");
+  try {
+    process.kill(-server.pid, "SIGTERM");
+  } catch {}
   await mongod.stop();
   process.exit(code);
 };

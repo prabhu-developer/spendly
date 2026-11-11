@@ -149,7 +149,11 @@ export function DashboardCharts({
                     paddingAngle={3}
                   >
                     {categoryBreakdown.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color || "#2878E5"} />
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={entry.color || "#2878E5"}
+                        aria-label={`${entry.name}: ${Math.round(entry.percentage ?? 0)}% of spending`}
+                      />
                     ))}
                   </Pie>
                   <Tooltip content={<CategoryTooltip />} />

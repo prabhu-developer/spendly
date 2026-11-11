@@ -135,7 +135,7 @@ export default function CategoriesPage() {
 
         <Button
           onClick={openCreateDialog}
-          className="gap-1.5 bg-primary hover:bg-primary-hover"
+          className="gap-1.5"
         >
           <Plus className="h-4 w-4" />
           Add Category
@@ -147,7 +147,7 @@ export default function CategoriesPage() {
         <button
           onClick={() => setActiveTab("expense")}
           className={`rounded-lg px-4 py-2 text-xs font-semibold transition-colors ${activeTab === "expense"
-            ? "bg-primary text-white"
+            ? "bg-primary-strong text-white"
             : "bg-white text-muted-foreground hover:text-main border border-border"
             }`}
         >
@@ -156,7 +156,7 @@ export default function CategoriesPage() {
         <button
           onClick={() => setActiveTab("income")}
           className={`rounded-lg px-4 py-2 text-xs font-semibold transition-colors ${activeTab === "income"
-            ? "bg-primary text-white"
+            ? "bg-primary-strong text-white"
             : "bg-white text-muted-foreground hover:text-main border border-border"
             }`}
         >
@@ -323,7 +323,7 @@ export default function CategoriesPage() {
               </Button>
               <Button
                 type="submit"
-                className="bg-primary hover:bg-primary-hover"
+                
                 disabled={isSubmitting}
               >
                 {isSubmitting ? "Saving..." : editingCategory ? "Update" : "Create"}
