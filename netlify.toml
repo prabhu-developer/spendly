@@ -2,7 +2,8 @@
   command = "npm run build"
   publish = ".next"
 
+
 [build.environment]
   SECRETS_SCAN_OMIT_PATHS = ".env.example"
   # NEXT_PUBLIC_* values are public by design (inlined into the build); the app URL is used for same-origin checks
-  SECRETS_SCAN_OMIT_KEYS = "MONGODB_DB_NAME,NEXT_PUBLIC_APP_URL"
+  SECRETS_SCAN_OMIT_KEYS = "MONGODB_DB_NAME"
