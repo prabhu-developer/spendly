@@ -226,8 +226,7 @@ export default function DashboardOverviewPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Financial overview"
-        description="This month at a glance — cash flow, spending and progress toward your targets."
+        title="Dashboard"
         actions={
           <>
             {reportsData?.isEstimate && (

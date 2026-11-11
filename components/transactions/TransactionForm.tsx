@@ -222,13 +222,12 @@ export function TransactionForm({
             type="button"
             onClick={() => handleTypeChange(type)}
             aria-pressed={selectedType === type}
-            className={`min-h-11 rounded-md text-sm font-semibold capitalize transition-all ${
-              selectedType === type
+            className={`min-h-11 rounded-md text-sm font-semibold capitalize transition-all ${selectedType === type
                 ? type === "expense"
                   ? "bg-white text-expense-text shadow-sm"
                   : "bg-white text-income-text shadow-sm"
                 : "text-muted-foreground hover:text-main"
-            }`}
+              }`}
           >
             {type}
           </button>
@@ -254,7 +253,11 @@ export function TransactionForm({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="amount">Amount</Label>
+        <Label htmlFor="amount">Amount {" "}
+          <span id="amount-currency" className="text-xs text-muted-foreground">
+            ({transactionCurrency})
+          </span>
+        </Label>
         <Input
           id="amount"
           type="number"
@@ -267,9 +270,7 @@ export function TransactionForm({
           aria-describedby={errors.amount ? "amount-error" : "amount-currency"}
           {...register("amount", { valueAsNumber: true })}
         />
-        <p id="amount-currency" className="text-xs text-muted-foreground">
-          In {SUPPORTED_CURRENCIES[transactionCurrency].name} ({transactionCurrency})
-        </p>
+
         {errors.amount && (
           <p id="amount-error" role="alert" className="text-sm text-expense-text">
             {errors.amount.message}
@@ -277,32 +278,59 @@ export function TransactionForm({
         )}
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="categoryId">Category</Label>
-        <Select
-          value={selectedCategory}
-          onValueChange={(value) =>
-            setValue("categoryId", value, { shouldDirty: true, shouldValidate: true })
-          }
-        >
-          <SelectTrigger
-            id="categoryId"
-            className="h-12"
-            aria-invalid={Boolean(errors.categoryId)}
+      <div className="flex gap-4 w-full">
+        <div className="space-y-2 flex-1">
+          <Label htmlFor="categoryId">Category</Label>
+          <Select
+            value={selectedCategory}
+            onValueChange={(value) =>
+              setValue("categoryId", value, { shouldDirty: true, shouldValidate: true })
+            }
           >
-            <SelectValue placeholder="Select category" />
-          </SelectTrigger>
-          <SelectContent>
-            {availableCategories.map((category) => (
-              <SelectItem key={category.id} value={category.id}>
-                {category.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {errors.categoryId && (
-          <p className="text-sm text-expense-text">{errors.categoryId.message}</p>
-        )}
+            <SelectTrigger
+              id="categoryId"
+              className="h-12"
+              aria-invalid={Boolean(errors.categoryId)}
+            >
+              <SelectValue placeholder="Select category" />
+            </SelectTrigger>
+            <SelectContent>
+              {availableCategories.map((category) => (
+                <SelectItem key={category.id} value={category.id}>
+                  {category.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {errors.categoryId && (
+            <p className="text-sm text-expense-text">{errors.categoryId.message}</p>
+          )}
+        </div>
+        <div className="space-y-2 flex-1">
+          <Label htmlFor="paymentMethod">Payment Method</Label>
+          <Select
+            value={selectedPaymentMethod}
+            onValueChange={(value) =>
+              setValue("paymentMethod", value as TransactionInput["paymentMethod"], {
+                shouldDirty: true,
+                shouldValidate: true,
+              })
+            }
+          >
+            <SelectTrigger id="paymentMethod" className="h-12">
+              <SelectValue placeholder="Payment method" />
+            </SelectTrigger>
+            <SelectContent>
+              {["Cash", "Credit Card", "Debit Card", "Bank Transfer", "UPI", "Other"].map(
+                (method) => (
+                  <SelectItem key={method} value={method}>
+                    {method}
+                  </SelectItem>
+                )
+              )}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {(selectableAccounts.length > 0 || selectedAccountId) && (
@@ -329,31 +357,6 @@ export function TransactionForm({
         </div>
       )}
 
-      <div className="space-y-2">
-        <Label htmlFor="paymentMethod">Payment Method</Label>
-        <Select
-          value={selectedPaymentMethod}
-          onValueChange={(value) =>
-            setValue("paymentMethod", value as TransactionInput["paymentMethod"], {
-              shouldDirty: true,
-              shouldValidate: true,
-            })
-          }
-        >
-          <SelectTrigger id="paymentMethod" className="h-12">
-            <SelectValue placeholder="Payment method" />
-          </SelectTrigger>
-          <SelectContent>
-            {["Cash", "Credit Card", "Debit Card", "Bank Transfer", "UPI", "Other"].map(
-              (method) => (
-                <SelectItem key={method} value={method}>
-                  {method}
-                </SelectItem>
-              )
-            )}
-          </SelectContent>
-        </Select>
-      </div>
 
       <div className="space-y-2">
         <Label htmlFor="date">Date</Label>
@@ -366,15 +369,15 @@ export function TransactionForm({
         <textarea
           id="notes"
           placeholder="Additional details..."
-          rows={3}
-          className="flex min-h-24 w-full resize-y rounded-lg border border-border bg-white px-3 py-3 text-sm text-main transition-[border-color,box-shadow] placeholder:text-muted-foreground hover:border-border-strong focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-50"
+          rows={2}
+          className="flex w-full resize-y rounded-lg border border-border bg-white px-3 py-3 text-sm text-main transition-[border-color,box-shadow] placeholder:text-muted-foreground hover:border-border-strong focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-50"
           aria-invalid={Boolean(errors.notes)}
           {...register("notes")}
         />
         {errors.notes && <p className="text-sm text-expense-text">{errors.notes.message}</p>}
       </div>
 
-      <div className="flex flex-col-reverse gap-3 border-t border-border pt-4 sm:flex-row sm:justify-end">
+      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         {onCancel && (
           <Button
             type="button"

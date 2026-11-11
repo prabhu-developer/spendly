@@ -124,7 +124,7 @@ export function Header({
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-[#28d2e5] p-0 font-semibold text-white hover:bg-primary-hover"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-green-900 p-0 font-semibold text-white hover:bg-primary-hover"
             >
               {user?.name ? user.name.charAt(0).toUpperCase() : <UserIcon className="h-4 w-4" />}
             </Button>

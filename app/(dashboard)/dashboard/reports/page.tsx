@@ -145,8 +145,7 @@ function ReportsContent() {
 
       <div className="print:hidden">
         <PageHeader
-          title="Financial reports"
-          description="Cash flow, spending patterns, budgets and net worth for any period."
+          title="Reports"
           actions={
             <>
               <Button variant="outline" size="sm" onClick={handleExportCsv} disabled={!report}>

@@ -27,20 +27,6 @@ export default function NewTransactionPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-5">
-      <div>
-        <Link
-          href="/dashboard/transactions"
-          className="inline-flex min-h-11 items-center text-sm font-medium text-primary-text hover:underline"
-        >
-          &larr; Back to transactions
-        </Link>
-        <h2 className="mt-2 text-xl font-semibold tracking-tight text-main">
-          Add Transaction
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Record an income or expense. You can add another transaction after saving.
-        </p>
-      </div>
 
       {userId && <OfflineDraftsPanel userId={userId} />}
 
