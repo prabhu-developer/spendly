@@ -1,20 +1,9 @@
 import mongoose, { Schema, Model } from "mongoose";
 import { SUPPORTED_CURRENCY_CODES, type SupportedCurrency } from "@/lib/currency/currencies";
 
-export const ACCOUNT_TYPES = [
-  "checking",
-  "savings",
-  "credit_card",
-  "cash",
-  "investment",
-  "loan",
-  "wallet",
-  "other",
-] as const;
-export type AccountType = (typeof ACCOUNT_TYPES)[number];
+import { ACCOUNT_TYPES, type AccountType } from "@/lib/accounts/constants";
 
-/** Liability accounts usually carry a negative balance (money owed). */
-export const LIABILITY_ACCOUNT_TYPES: readonly AccountType[] = ["credit_card", "loan"];
+export { ACCOUNT_TYPES, LIABILITY_ACCOUNT_TYPES, type AccountType } from "@/lib/accounts/constants";
 
 export interface IAccount {
   _id: mongoose.Types.ObjectId;

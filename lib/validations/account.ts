@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ACCOUNT_TYPES } from "@/models/Account";
+import { ACCOUNT_TYPES } from "@/lib/accounts/constants";
 import { SUPPORTED_CURRENCY_CODES } from "@/lib/currency/currencies";
 
 const HEX_COLOR = /^#[0-9A-Fa-f]{6}$/;

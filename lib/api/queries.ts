@@ -3,7 +3,7 @@
 import { useQuery, type QueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 import type { SupportedCurrency } from "@/lib/currency/currencies";
-import type { AccountType } from "@/models/Account";
+import type { AccountType } from "@/lib/accounts/constants";
 
 /** Every query key holding derived financial data. Mutations invalidate them together. */
 export const FINANCIAL_QUERY_KEYS = [

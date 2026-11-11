@@ -107,13 +107,16 @@ const TransactionSchema = new Schema<ITransaction>(
   }
 );
 
-// Compound indexes for performant multi-tenant queries
-TransactionSchema.index({ userId: 1, date: -1 });
-TransactionSchema.index({ userId: 1, type: 1, date: -1 });
+// Compound indexes for performant multi-tenant queries.
+// Lists sort by { date, _id } (the _id tie-break keeps pagination stable for same-day
+// transactions), so _id is part of each index — the DB walks the index in order instead of
+// sorting every matching document in memory.
+TransactionSchema.index({ userId: 1, date: -1, _id: -1 });
+TransactionSchema.index({ userId: 1, type: 1, date: -1, _id: -1 });
 // Category-filtered lists sorted by date, and budget spend lookups
-TransactionSchema.index({ userId: 1, categoryId: 1, date: -1 });
+TransactionSchema.index({ userId: 1, categoryId: 1, date: -1, _id: -1 });
 // Account-filtered lists and per-account balance aggregation
-TransactionSchema.index({ userId: 1, accountId: 1, date: -1 });
+TransactionSchema.index({ userId: 1, accountId: 1, date: -1, _id: -1 });
 // Idempotent offline-draft sync: one transaction per (user, clientRequestId)
 TransactionSchema.index(
   { userId: 1, clientRequestId: 1 },

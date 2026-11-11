@@ -14,7 +14,7 @@ import { invalidateFinancialData, type AccountSummary } from "@/lib/api/queries"
 import { accountSchema } from "@/lib/validations/account";
 import { CURRENCY_LIST, type SupportedCurrency } from "@/lib/currency/currencies";
 import { ACCOUNT_COLORS, ACCOUNT_TYPE_LABELS } from "@/lib/accounts/labels";
-import { ACCOUNT_TYPES, LIABILITY_ACCOUNT_TYPES, type AccountType } from "@/models/Account";
+import { ACCOUNT_TYPES, LIABILITY_ACCOUNT_TYPES, type AccountType } from "@/lib/accounts/constants";
 import { cn } from "@/lib/utils";
 
 interface Props {

@@ -1,4 +1,4 @@
-import type { AccountType } from "@/models/Account";
+import type { AccountType } from "@/lib/accounts/constants";
 
 export const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
   checking: "Checking",

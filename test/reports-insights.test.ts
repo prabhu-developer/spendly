@@ -57,14 +57,15 @@ describe("CSV export", () => {
 describe("resolveReportRange", () => {
   const params = (o: Record<string, string>) => new URLSearchParams(o);
 
-  it("defaults to the current month and builds an equal-length previous period", () => {
+  it("defaults to the current month and compares with the whole previous month", () => {
     const r = resolveReportRange(params({}), new Date(2026, 10, 11));
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.start).toEqual(new Date(2026, 10, 1));
     expect(r.end.getDate()).toBe(30);
     expect(r.prevEnd.getTime()).toBe(r.start.getTime() - 1);
-    expect(r.end.getTime() - r.start.getTime()).toBe(r.prevEnd.getTime() - r.prevStart.getTime());
+    // All of October (31 days), not a 30-day window that would skip Oct 1
+    expect(r.prevStart).toEqual(new Date(2026, 9, 1));
   });
 
   it("treats date-only end dates as end of day", () => {
@@ -238,5 +239,36 @@ describe("conversion expression", () => {
     expect(expr.$multiply[0]).toBe("$amount");
     const branches = (expr.$multiply[1] as { $switch: { branches: { then: number }[] } }).$switch.branches;
     expect(branches.map((b) => b.then)).toEqual([1, 1 / 0.92]);
+  });
+});
+
+import { previousPeriod } from "@/lib/reports/range";
+
+describe("previousPeriod", () => {
+  const d = (y: number, m: number, day: number, end = false) =>
+    end ? new Date(y, m - 1, day, 23, 59, 59, 999) : new Date(y, m - 1, day);
+
+  it("compares a 30-day month with the whole previous 31-day month", () => {
+    const { prevStart, prevEnd } = previousPeriod(d(2026, 11, 1), d(2026, 11, 30, true));
+    expect(prevStart).toEqual(d(2026, 10, 1));
+    expect(prevEnd).toEqual(d(2026, 10, 31, true));
+  });
+
+  it("handles February and multi-month ranges", () => {
+    expect(previousPeriod(d(2026, 3, 1), d(2026, 3, 31, true))).toEqual({
+      prevStart: d(2026, 2, 1),
+      prevEnd: d(2026, 2, 28, true),
+    });
+    expect(previousPeriod(d(2026, 9, 1), d(2026, 11, 30, true))).toEqual({
+      prevStart: d(2026, 6, 1),
+      prevEnd: d(2026, 8, 31, true),
+    });
+  });
+
+  it("uses the same number of preceding days for arbitrary ranges", () => {
+    expect(previousPeriod(d(2026, 11, 10), d(2026, 11, 16, true))).toEqual({
+      prevStart: d(2026, 11, 3),
+      prevEnd: d(2026, 11, 9, true),
+    });
   });
 });
