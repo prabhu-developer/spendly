@@ -29,6 +29,8 @@ export const transactionSchema = z.object({
     .enum(["Cash", "Credit Card", "Debit Card", "Bank Transfer", "UPI", "Other"])
     .default("Other"),
   notes: z.string().max(500, "Notes cannot exceed 500 characters").optional().default(""),
+  accountId: z.string().nullable().optional(),
+  clientRequestId: z.string().min(8).max(64).optional(),
 });
 
 export type TransactionInput = z.input<typeof transactionSchema>;

@@ -1,13 +1,13 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import {
   Bar,
-  BarChart,
   CartesianGrid,
   Cell,
+  ComposedChart,
   Legend,
   Line,
-  LineChart,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -15,222 +15,193 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { ArrowDownRight, ArrowUpRight, ChevronRight, Minus } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatCurrency } from "@/lib/currency/currencies";
+import { cn } from "@/lib/utils";
+import { ChartTooltip, CHART_COLORS, compactAxisFormatter } from "@/features/reports/chartKit";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { formatCurrency, SupportedCurrency } from "@/lib/currency/currencies";
-
-interface MonthlyTrend {
-  month: string;
-  income: number;
-  expenses: number;
-  savings: number;
-}
-
-interface CategoryBreakdown {
-  name: string;
-  color: string;
-  amount: number;
-  percentage: number;
-  count: number;
-}
+  transactionsDrillDownHref,
+  type CashFlowPoint,
+  type CategoryBreakdownItem,
+  type CategoryComparisonItem,
+} from "@/features/reports/types";
 
 interface ReportChartsProps {
-  monthlyTrends: MonthlyTrend[];
-  categoryBreakdown: CategoryBreakdown[];
-  currency: SupportedCurrency | string;
+  cashFlow: CashFlowPoint[];
+  categoryBreakdown: CategoryBreakdownItem[];
+  categoryComparison: CategoryComparisonItem[];
+  currency: string;
+  range: { from: string; to: string };
 }
 
-interface TooltipProps {
-  active?: boolean;
-  payload?: Array<{
-    color?: string;
-    stroke?: string;
-    name?: string;
-    value?: number;
-  }>;
-  label?: string;
+function SectionEmpty({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex h-full min-h-[10rem] items-center justify-center rounded-lg border border-dashed border-border px-4 text-center text-xs text-muted-foreground">
+      {children}
+    </div>
+  );
 }
 
 export function ReportCharts({
-  monthlyTrends,
+  cashFlow,
   categoryBreakdown,
+  categoryComparison,
   currency,
+  range,
 }: ReportChartsProps) {
-  const customTooltip = ({ active, payload, label }: TooltipProps) => {
-    if (!active || !payload?.length) return null;
-
-    return (
-      <div className="rounded-lg border border-[#E8EDF4] bg-white p-3 shadow-lg">
-        <p className="mb-1 text-xs font-semibold text-[#202735]">{label}</p>
-        {payload.map((entry, index) => (
-          <div key={`item-${index}`} className="flex items-center gap-2 text-xs">
-            <span
-              className="h-2 w-2 rounded-full"
-              style={{ backgroundColor: entry.color || entry.stroke }}
-            />
-            <span className="text-[#8992A3]">{entry.name}:</span>
-            <span className="font-semibold text-[#202735]">
-              {formatCurrency(entry.value ?? 0, currency)}
-            </span>
-          </div>
-        ))}
-      </div>
+  const router = useRouter();
+  const hasFlow = cashFlow.some((m) => m.income !== 0 || m.expenses !== 0);
+  const drillDown = (categoryId: string) => {
+    if (categoryId === "other") return; // "Other" groups deleted categories; nothing to filter on
+    router.push(
+      transactionsDrillDownHref({ categoryId, type: "expense", startDate: range.from, endDate: range.to })
     );
   };
 
   return (
-    <>
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card className="border border-[#E8EDF4]">
-          <CardHeader>
-            <CardTitle className="text-base font-semibold">
-              Income vs Expense Comparison
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Past 6 months overview
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-72 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={monthlyTrends}
-                  margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-                >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    vertical={false}
-                    stroke="#E8EDF4"
-                  />
-                  <XAxis
-                    dataKey="month"
-                    stroke="#8992A3"
-                    fontSize={11}
-                    tickLine={false}
-                  />
-                  <YAxis stroke="#8992A3" fontSize={11} tickLine={false} />
-                  <Tooltip content={customTooltip} />
-                  <Legend wrapperStyle={{ paddingTop: "12px", fontSize: "12px" }} />
-                  <Bar
-                    dataKey="income"
-                    name="Income"
-                    fill="#269B72"
-                    radius={[4, 4, 0, 0]}
-                  />
-                  <Bar
-                    dataKey="expenses"
-                    name="Expenses"
-                    fill="#F07862"
-                    radius={[4, 4, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
+    <div className="space-y-6">
+      {/* Cash flow */}
+      <Card className="break-inside-avoid">
+        <CardHeader className="pb-2">
+          <CardTitle>Income vs expenses</CardTitle>
+          <CardDescription className="text-xs">
+            Monthly cash flow for the selected period — bars show income and expenses, the line shows net.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {hasFlow ? (
+            <>
+              <div className="h-72 w-full" role="img" aria-label="Monthly income, expenses and net cash flow chart">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={cashFlow} margin={{ top: 10, right: 8, left: 0, bottom: 0 }} accessibilityLayer>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={CHART_COLORS.grid} />
+                    <XAxis dataKey="month" stroke={CHART_COLORS.axis} fontSize={11} tickLine={false} axisLine={false} />
+                    <YAxis
+                      stroke={CHART_COLORS.axis}
+                      fontSize={11}
+                      tickLine={false}
+                      axisLine={false}
+                      width={56}
+                      tickFormatter={compactAxisFormatter}
+                    />
+                    <Tooltip content={<ChartTooltip currency={currency} />} cursor={{ fill: "rgba(40,120,229,0.06)" }} />
+                    <Legend wrapperStyle={{ paddingTop: 12, fontSize: 12 }} iconType="circle" iconSize={8} />
+                    <Bar dataKey="income" name="Income" fill={CHART_COLORS.income} radius={[4, 4, 0, 0]} maxBarSize={28} />
+                    <Bar dataKey="expenses" name="Expenses" fill={CHART_COLORS.expense} radius={[4, 4, 0, 0]} maxBarSize={28} />
+                    <Line
+                      type="monotone"
+                      dataKey="net"
+                      name="Net"
+                      stroke={CHART_COLORS.primary}
+                      strokeWidth={2.25}
+                      dot={{ r: 3, fill: CHART_COLORS.primary }}
+                      activeDot={{ r: 5 }}
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+              {/* Screen-reader / print equivalent of the chart */}
+              <table className="sr-only">
+                <caption>Monthly cash flow</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Month</th>
+                    <th scope="col">Income</th>
+                    <th scope="col">Expenses</th>
+                    <th scope="col">Net</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {cashFlow.map((m) => (
+                    <tr key={m.key}>
+                      <th scope="row">{m.month}</th>
+                      <td>{formatCurrency(m.income, currency)}</td>
+                      <td>{formatCurrency(m.expenses, currency)}</td>
+                      <td>{formatCurrency(m.net, currency)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          ) : (
+            <SectionEmpty>No income or expenses recorded in this period.</SectionEmpty>
+          )}
+        </CardContent>
+      </Card>
 
-        <Card className="border border-[#E8EDF4]">
-          <CardHeader>
-            <CardTitle className="text-base font-semibold">
-              Monthly Cash Flow Trajectory
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Savings trend over time
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-72 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={monthlyTrends}
-                  margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-                >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    vertical={false}
-                    stroke="#E8EDF4"
-                  />
-                  <XAxis
-                    dataKey="month"
-                    stroke="#8992A3"
-                    fontSize={11}
-                    tickLine={false}
-                  />
-                  <YAxis stroke="#8992A3" fontSize={11} tickLine={false} />
-                  <Tooltip content={customTooltip} />
-                  <Legend wrapperStyle={{ paddingTop: "12px", fontSize: "12px" }} />
-                  <Line
-                    type="monotone"
-                    dataKey="savings"
-                    name="Net Savings"
-                    stroke="#2878E5"
-                    strokeWidth={2.5}
-                    dot={{ fill: "#2878E5", r: 4 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
+      {/* Category breakdown + distribution */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <Card className="col-span-1 border border-[#E8EDF4] lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-base font-semibold">
-              Category Expense Breakdown
-            </CardTitle>
+        <Card className="break-inside-avoid lg:col-span-2">
+          <CardHeader className="pb-2">
+            <CardTitle>Expenses by category</CardTitle>
             <CardDescription className="text-xs">
-              Detailed breakdown of expenses in selected period
+              Select a category to see its transactions.
             </CardDescription>
           </CardHeader>
           <CardContent>
             {categoryBreakdown.length === 0 ? (
-              <p className="py-8 text-center text-xs text-[#8992A3]">
-                No expenses logged in this selected date range.
-              </p>
+              <SectionEmpty>No expenses logged in this period.</SectionEmpty>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="-mx-2 overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead>
-                    <tr className="border-b border-[#E8EDF4] text-[#8992A3]">
-                      <th className="pb-3 font-medium">Category</th>
-                      <th className="pb-3 font-medium">Transactions</th>
-                      <th className="pb-3 text-right font-medium">Amount</th>
-                      <th className="pb-3 text-right font-medium">Share</th>
+                    <tr className="border-b border-border text-muted-foreground">
+                      <th scope="col" className="px-2 pb-2.5 font-medium">Category</th>
+                      <th scope="col" className="px-2 pb-2.5 text-right font-medium">Transactions</th>
+                      <th scope="col" className="px-2 pb-2.5 text-right font-medium">Amount</th>
+                      <th scope="col" className="w-[28%] px-2 pb-2.5 font-medium">Share</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#E8EDF4]">
-                    {categoryBreakdown.map((category, index) => (
-                      <tr
-                        key={`${category.name}-${index}`}
-                        className="hover:bg-[#F3F6FC]/50"
-                      >
-                        <td className="py-3 font-medium text-[#202735]">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className="h-2.5 w-2.5 rounded-full"
-                              style={{ backgroundColor: category.color }}
-                            />
-                            {category.name}
-                          </div>
-                        </td>
-                        <td className="py-3 text-[#8992A3]">
-                          {category.count} txns
-                        </td>
-                        <td className="py-3 text-right font-semibold text-[#202735]">
-                          {formatCurrency(category.amount, currency)}
-                        </td>
-                        <td className="py-3 text-right font-medium text-[#2878E5]">
-                          {category.percentage}%
-                        </td>
-                      </tr>
-                    ))}
+                  <tbody className="divide-y divide-border">
+                    {categoryBreakdown.map((category) => {
+                      const clickable = category.id !== "other";
+                      return (
+                        <tr
+                          key={category.id}
+                          className={cn("group", clickable && "cursor-pointer hover:bg-muted/60")}
+                          onClick={clickable ? () => drillDown(category.id) : undefined}
+                        >
+                          <td className="px-2 py-2.5 font-medium text-main">
+                            {clickable ? (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  drillDown(category.id);
+                                }}
+                                className="inline-flex items-center gap-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                                aria-label={`View ${category.name} transactions`}
+                              >
+                                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: category.color }} />
+                                {category.name}
+                                <ChevronRight className="h-3 w-3 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 print:hidden" />
+                              </button>
+                            ) : (
+                              <span className="inline-flex items-center gap-2">
+                                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: category.color }} />
+                                {category.name}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-2 py-2.5 text-right tabular-nums text-muted-foreground">{category.count}</td>
+                          <td className="px-2 py-2.5 text-right font-semibold tabular-nums text-main">
+                            {formatCurrency(category.amount, currency)}
+                          </td>
+                          <td className="px-2 py-2.5">
+                            <div className="flex items-center gap-2">
+                              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                                <div
+                                  className="h-full rounded-full"
+                                  style={{ width: `${Math.min(100, category.percentage)}%`, backgroundColor: category.color }}
+                                />
+                              </div>
+                              <span className="w-12 text-right tabular-nums text-muted-foreground">{category.percentage}%</span>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -238,18 +209,14 @@ export function ReportCharts({
           </CardContent>
         </Card>
 
-        <Card className="col-span-1 border border-[#E8EDF4]">
-          <CardHeader>
-            <CardTitle className="text-base font-semibold">
-              Distribution
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Visual category share
-            </CardDescription>
+        <Card className="break-inside-avoid">
+          <CardHeader className="pb-2">
+            <CardTitle>Distribution</CardTitle>
+            <CardDescription className="text-xs">Share of total spending</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-60 w-full">
-              {categoryBreakdown.length > 0 ? (
+            {categoryBreakdown.length > 0 ? (
+              <div className="h-64 w-full" role="img" aria-label="Category share of spending chart">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -258,29 +225,103 @@ export function ReportCharts({
                       nameKey="name"
                       cx="50%"
                       cy="50%"
-                      innerRadius={50}
-                      outerRadius={80}
-                      paddingAngle={3}
+                      innerRadius={58}
+                      outerRadius={88}
+                      paddingAngle={2}
+                      stroke="#fff"
+                      strokeWidth={2}
+                      onClick={(entry: { id?: string; payload?: { id?: string } }) => {
+                        const id = entry?.id ?? entry?.payload?.id;
+                        if (id) drillDown(id);
+                      }}
+                      className="cursor-pointer focus:outline-none"
                     >
-                      {categoryBreakdown.map((entry, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={entry.color || "#2878E5"}
-                        />
+                      {categoryBreakdown.map((entry) => (
+                        <Cell key={entry.id} fill={entry.color || CHART_COLORS.primary} />
                       ))}
                     </Pie>
-                    <Tooltip />
+                    <Tooltip content={<ChartTooltip currency={currency} showPercentOf={categoryBreakdown.reduce((a, c) => a + c.amount, 0)} />} />
                   </PieChart>
                 </ResponsiveContainer>
-              ) : (
-                <div className="flex h-full items-center justify-center text-xs text-[#8992A3]">
-                  No data to display
-                </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              <SectionEmpty>No data to display.</SectionEmpty>
+            )}
           </CardContent>
         </Card>
       </div>
-    </>
+
+      {/* Period comparison by category */}
+      <Card className="break-inside-avoid">
+        <CardHeader className="pb-2">
+          <CardTitle>Spending change by category</CardTitle>
+          <CardDescription className="text-xs">
+            Largest movements compared with the previous period of the same length.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {categoryComparison.length === 0 ? (
+            <SectionEmpty>No expenses in either period to compare.</SectionEmpty>
+          ) : (
+            <div className="-mx-2 overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-border text-muted-foreground">
+                    <th scope="col" className="px-2 pb-2.5 font-medium">Category</th>
+                    <th scope="col" className="px-2 pb-2.5 text-right font-medium">Previous</th>
+                    <th scope="col" className="px-2 pb-2.5 text-right font-medium">This period</th>
+                    <th scope="col" className="px-2 pb-2.5 text-right font-medium">Change</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {categoryComparison.map((row) => {
+                    const up = row.change > 0;
+                    const down = row.change < 0;
+                    return (
+                      <tr key={row.id}>
+                        <td className="px-2 py-2.5 font-medium text-main">
+                          <span className="inline-flex items-center gap-2">
+                            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: row.color }} />
+                            {row.name}
+                          </span>
+                        </td>
+                        <td className="px-2 py-2.5 text-right tabular-nums text-muted-foreground">
+                          {formatCurrency(row.previous, currency)}
+                        </td>
+                        <td className="px-2 py-2.5 text-right font-semibold tabular-nums text-main">
+                          {formatCurrency(row.current, currency)}
+                        </td>
+                        <td
+                          className={cn(
+                            "px-2 py-2.5 text-right font-medium tabular-nums",
+                            // More spending is unfavourable
+                            up && "text-expense-text",
+                            down && "text-income-text",
+                            !up && !down && "text-muted-foreground"
+                          )}
+                        >
+                          <span className="inline-flex items-center gap-0.5">
+                            {up && <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />}
+                            {down && <ArrowDownRight className="h-3.5 w-3.5" aria-hidden />}
+                            {!up && !down && <Minus className="h-3.5 w-3.5" aria-hidden />}
+                            {formatCurrency(row.change, currency, true)}
+                            {row.changePercent !== null && (
+                              <span className="ml-1 text-muted-foreground">({Math.abs(row.changePercent)}%)</span>
+                            )}
+                            {row.changePercent === null && row.current > 0 && (
+                              <span className="ml-1 text-muted-foreground">(new)</span>
+                            )}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }

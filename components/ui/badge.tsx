@@ -3,20 +3,20 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
   {
     variants: {
       variant: {
         default:
-          "border-transparent bg-[#2878E5] text-white hover:bg-[#1F65C2]",
+          "border-transparent bg-primary text-white hover:bg-primary-hover",
         secondary:
-          "border-transparent bg-[#F3F6FC] text-[#202735] hover:bg-[#E8EDF4]",
+          "border-transparent bg-muted text-main hover:bg-border",
         destructive:
-          "border-transparent bg-[#F07862] text-white hover:bg-[#D9634E]",
-        outline: "text-[#202735] border-[#E8EDF4]",
-        income: "border-transparent bg-[#EAF6F1] text-[#269B72]",
-        expense: "border-transparent bg-[#FDF1EE] text-[#F07862]",
-        warning: "border-transparent bg-[#FEF8EC] text-[#E9B949]",
+          "border-transparent bg-expense text-white hover:bg-expense-hover",
+        outline: "text-main border-border",
+        income: "border-transparent bg-income-light text-income-text",
+        expense: "border-transparent bg-expense-light text-expense-text",
+        warning: "border-transparent bg-warning-light text-warning-foreground",
       },
     },
     defaultVariants: {

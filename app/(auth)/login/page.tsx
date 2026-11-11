@@ -12,6 +12,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { safeRedirectPath } from "@/lib/utils/safeRedirect";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -34,7 +35,9 @@ export default function LoginPage() {
     try {
       const res = await apiClient.post("/auth/login", data);
       if (res.data.success) {
-        router.push("/dashboard");
+        // Return to the page that required login (same-site paths only)
+        const redirect = new URLSearchParams(window.location.search).get("redirect");
+        router.push(safeRedirectPath(redirect));
         router.refresh();
       }
     } catch (err: any) {
@@ -45,12 +48,12 @@ export default function LoginPage() {
   };
 
   return (
-    <Card className="border border-[#E8EDF4] bg-white shadow-sm">
+    <Card className="border border-border bg-white shadow-sm">
       <CardHeader className="space-y-1 text-center">
-        <CardTitle className="text-2xl font-bold tracking-tight text-[#202735]">
+        <CardTitle className="text-2xl font-bold tracking-tight text-main">
           Welcome Back
         </CardTitle>
-        <CardDescription className="text-xs text-[#8992A3]">
+        <CardDescription className="text-xs text-muted-foreground">
           Enter your email and password to access your Spendly dashboard
         </CardDescription>
       </CardHeader>
@@ -58,7 +61,7 @@ export default function LoginPage() {
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {errorMessage && (
-            <div className="flex items-center gap-2 rounded-lg bg-[#FDF1EE] p-3 text-xs text-[#F07862]">
+            <div className="flex items-center gap-2 rounded-lg bg-expense-light p-3 text-xs text-expense-text">
               <AlertCircle className="h-4 w-4 shrink-0" />
               <span>{errorMessage}</span>
             </div>
@@ -67,7 +70,7 @@ export default function LoginPage() {
           <div className="space-y-1.5">
             <Label htmlFor="email">Email</Label>
             <div className="relative">
-              <Mail className="absolute left-3 top-2.5 h-4 w-4 text-[#8992A3]" />
+              <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 id="email"
                 type="email"
@@ -77,7 +80,7 @@ export default function LoginPage() {
               />
             </div>
             {errors.email && (
-              <p className="text-xs text-[#F07862]">{errors.email.message}</p>
+              <p className="text-xs text-expense-text">{errors.email.message}</p>
             )}
           </div>
 
@@ -86,7 +89,7 @@ export default function LoginPage() {
               <Label htmlFor="password">Password</Label>
             </div>
             <div className="relative">
-              <Lock className="absolute left-3 top-2.5 h-4 w-4 text-[#8992A3]" />
+              <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 id="password"
                 type="password"
@@ -96,13 +99,13 @@ export default function LoginPage() {
               />
             </div>
             {errors.password && (
-              <p className="text-xs text-[#F07862]">{errors.password.message}</p>
+              <p className="text-xs text-expense-text">{errors.password.message}</p>
             )}
           </div>
 
           <Button
             type="submit"
-            className="w-full bg-[#2878E5] hover:bg-[#1F65C2]"
+            className="w-full bg-primary hover:bg-primary-hover"
             disabled={isSubmitting || isLoading}
           >
             {isSubmitting ? "Signing In..." : "Sign In"}
@@ -110,11 +113,11 @@ export default function LoginPage() {
         </form>
       </CardContent>
 
-      <CardFooter className="flex justify-center border-t border-[#E8EDF4] pt-4 text-xs text-[#8992A3]">
+      <CardFooter className="flex justify-center border-t border-border pt-4 text-xs text-muted-foreground">
         Don&apos;t have an account?{" "}
         <Link
           href="/register"
-          className="ml-1 font-semibold text-[#2878E5] hover:underline"
+          className="ml-1 font-semibold text-primary-text hover:underline"
         >
           Create account
         </Link>

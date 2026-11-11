@@ -8,7 +8,11 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint .",
-    "test": "vitest run",
+    "test": "vitest run --exclude \"test/integration/**\" --exclude \"test/perf/**\" --exclude \"e2e/**\"",
+    "test:integration": "vitest run test/integration",
+    "test:all": "vitest run --exclude \"e2e/**\" --exclude \"test/perf/**\"",
+    "test:perf": "vitest run test/perf",
+    "test:e2e": "node e2e/run.mjs",
     "seed": "node scripts/seed.mjs"
   },
   "dependencies": {
@@ -21,7 +25,10 @@
     "@radix-ui/react-select": "^2.1.2",
     "@radix-ui/react-slot": "^1.1.0",
     "@radix-ui/react-tabs": "^1.1.1",
+    "@radix-ui/react-tooltip": "^1.4.1",
     "@tanstack/react-query": "^5.59.20",
+    "@tanstack/react-table": "^8.21.3",
+    "@tanstack/react-virtual": "^3.14.26",
     "axios": "^1.7.7",
     "bcryptjs": "^2.4.3",
     "class-variance-authority": "^0.7.0",
@@ -40,6 +47,8 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@playwright/test": "^1.65.0",
     "@serwist/next": "^9.5.13",
     "@testing-library/jest-dom": "^6.6.2",
     "@testing-library/react": "^16.0.1",
@@ -52,6 +61,7 @@
     "eslint": "^8.57.1",
     "eslint-config-next": "^14.2.15",
     "jsdom": "^25.0.1",
+    "mongodb-memory-server": "^10.4.3",
     "postcss": "^8.4.47",
     "serwist": "^9.5.13",
     "tailwindcss": "^3.4.14",

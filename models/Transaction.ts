@@ -19,6 +19,10 @@ export interface ITransaction extends Document {
   paymentMethod: string;
   notes?: string;
   exchangeRateSnapshot?: IExchangeRateSnapshot;
+  /** Optional: the account this transaction moved money in/out of. Null = unassigned (legacy data). */
+  accountId?: mongoose.Types.ObjectId | null;
+  /** Client-generated idempotency key (offline draft sync). Unique per user when present. */
+  clientRequestId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -88,16 +92,36 @@ const TransactionSchema = new Schema<ITransaction>(
       type: ExchangeRateSnapshotSchema,
       required: false,
     },
+    accountId: {
+      type: Schema.Types.ObjectId,
+      ref: "Account",
+      default: null,
+    },
+    clientRequestId: {
+      type: String,
+      maxlength: 64,
+    },
   },
   {
     timestamps: true,
   }
 );
 
-// Compound indexes for performant multi-tenant queries
-TransactionSchema.index({ userId: 1, date: -1 });
-TransactionSchema.index({ userId: 1, type: 1, date: -1 });
-TransactionSchema.index({ userId: 1, categoryId: 1 });
+// Compound indexes for performant multi-tenant queries.
+// Lists sort by { date, _id } (the _id tie-break keeps pagination stable for same-day
+// transactions), so _id is part of each index — the DB walks the index in order instead of
+// sorting every matching document in memory.
+TransactionSchema.index({ userId: 1, date: -1, _id: -1 });
+TransactionSchema.index({ userId: 1, type: 1, date: -1, _id: -1 });
+// Category-filtered lists sorted by date, and budget spend lookups
+TransactionSchema.index({ userId: 1, categoryId: 1, date: -1, _id: -1 });
+// Account-filtered lists and per-account balance aggregation
+TransactionSchema.index({ userId: 1, accountId: 1, date: -1, _id: -1 });
+// Idempotent offline-draft sync: one transaction per (user, clientRequestId)
+TransactionSchema.index(
+  { userId: 1, clientRequestId: 1 },
+  { unique: true, partialFilterExpression: { clientRequestId: { $type: "string" } } }
+);
 
 export const Transaction: Model<ITransaction> =
   mongoose.models.Transaction || mongoose.model<ITransaction>("Transaction", TransactionSchema);

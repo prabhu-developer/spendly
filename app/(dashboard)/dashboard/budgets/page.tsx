@@ -1,5 +1,8 @@
 "use client";
 
+import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/api/errors";
+import { invalidateFinancialData } from "@/lib/api/queries";
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
@@ -150,9 +153,10 @@ export default function BudgetsPage() {
         });
       }
       setDialogOpen(false);
-      refetch();
+      toast.success(editingBudget ? "Budget updated" : "Budget saved");
+      void invalidateFinancialData(queryClient);
     } catch (err: any) {
-      setFormError(err.response?.data?.error || "Failed to save budget");
+      setFormError(getErrorMessage(err, "Failed to save budget"));
     } finally {
       setIsSubmitting(false);
     }
@@ -164,9 +168,10 @@ export default function BudgetsPage() {
     try {
       await apiClient.delete(`/budgets/${deleteTargetId}`);
       setDeleteTargetId(null);
-      refetch();
+      toast.success("Budget deleted");
+      void invalidateFinancialData(queryClient);
     } catch (err) {
-      console.error("Delete budget failed:", err);
+      toast.error(getErrorMessage(err, "Failed to delete budget"));
     } finally {
       setIsDeleting(false);
     }
@@ -177,8 +182,8 @@ export default function BudgetsPage() {
       {/* Page Title & Actions */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-[#202735]">Budgets</h2>
-          <p className="text-xs text-[#8992A3]">
+          <h2 className="text-xl font-semibold tracking-tight text-main">Budgets</h2>
+          <p className="text-xs text-muted-foreground">
             Set category limits, monitor spending progress, and prevent budget overruns.
           </p>
         </div>
@@ -190,7 +195,7 @@ export default function BudgetsPage() {
             onValueChange={(val) => setSelectedMonth(parseInt(val, 10))}
           >
             <SelectTrigger className="h-9 w-36 text-xs">
-              <Calendar className="mr-1.5 h-3.5 w-3.5 text-[#2878E5]" />
+              <Calendar className="mr-1.5 h-3.5 w-3.5 text-primary-text" />
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -221,7 +226,7 @@ export default function BudgetsPage() {
 
           <Button
             onClick={openCreateDialog}
-            className="gap-1.5 bg-[#2878E5] hover:bg-[#1F65C2]"
+            className="gap-1.5 bg-primary hover:bg-primary-hover"
           >
             <Plus className="h-4 w-4" />
             Set Budget
@@ -231,37 +236,37 @@ export default function BudgetsPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card className="border border-[#E8EDF4]">
+        <Card className="border border-border">
           <CardContent className="p-5">
-            <span className="text-xs font-medium text-[#8992A3]">Total Monthly Budget</span>
-            <div className="mt-2 text-xl font-bold text-[#202735]">
+            <span className="text-xs font-medium text-muted-foreground">Total Monthly Budget</span>
+            <div className="mt-2 text-xl font-bold text-main">
               {formatCurrency(summary.totalBudget, preferredCurrency)}
             </div>
-            <p className="mt-1 text-[11px] text-[#8992A3]">
+            <p className="mt-1 text-[11px] text-muted-foreground">
               Allocated across {budgets.length} category targets
             </p>
           </CardContent>
         </Card>
 
-        <Card className="border border-[#E8EDF4]">
+        <Card className="border border-border">
           <CardContent className="p-5">
-            <span className="text-xs font-medium text-[#8992A3]">Total Spent</span>
-            <div className="mt-2 text-xl font-bold text-[#F07862]">
+            <span className="text-xs font-medium text-muted-foreground">Total Spent</span>
+            <div className="mt-2 text-xl font-bold text-expense-text">
               {formatCurrency(summary.totalSpent, preferredCurrency)}
             </div>
-            <p className="mt-1 text-[11px] text-[#8992A3]">
+            <p className="mt-1 text-[11px] text-muted-foreground">
               {summary.overallPercentage}% of monthly limit consumed
             </p>
           </CardContent>
         </Card>
 
-        <Card className="border border-[#E8EDF4]">
+        <Card className="border border-border">
           <CardContent className="p-5">
-            <span className="text-xs font-medium text-[#8992A3]">Remaining Safe Margin</span>
-            <div className="mt-2 text-xl font-bold text-[#269B72]">
+            <span className="text-xs font-medium text-muted-foreground">Remaining Safe Margin</span>
+            <div className="mt-2 text-xl font-bold text-income-text">
               {formatCurrency(summary.totalRemaining, preferredCurrency)}
             </div>
-            <p className="mt-1 text-[11px] text-[#8992A3]">
+            <p className="mt-1 text-[11px] text-muted-foreground">
               Available before hitting monthly ceiling
             </p>
           </CardContent>
@@ -270,10 +275,10 @@ export default function BudgetsPage() {
 
       {/* Budgets Grid */}
       {isLoading ? (
-        <div className="py-16 text-center text-xs text-[#8992A3]">Loading budgets...</div>
+        <div className="py-16 text-center text-xs text-muted-foreground">Loading budgets...</div>
       ) : budgets.length === 0 ? (
         <EmptyState
-          icon={<PiggyBank className="h-6 w-6 text-[#2878E5]" />}
+          icon={<PiggyBank className="h-6 w-6 text-primary-text" />}
           title={`No budgets set for ${MONTHS[selectedMonth - 1]} ${selectedYear}`}
           description="Create spending limits for key expense categories like Food, Transport, or Bills to monitor expenses."
           actionLabel="Set Category Budget"
@@ -285,15 +290,15 @@ export default function BudgetsPage() {
             const isExceeded = b.isExceeded;
             const isWarning = !isExceeded && b.percentage >= 80;
 
-            let progressColor = "bg-[#2878E5]";
-            if (isExceeded) progressColor = "bg-[#F07862]";
-            else if (isWarning) progressColor = "bg-[#E9B949]";
+            let progressColor = "bg-primary";
+            if (isExceeded) progressColor = "bg-expense";
+            else if (isWarning) progressColor = "bg-warning";
 
             return (
               <Card
                 key={b.id}
                 className={`border transition-all duration-200 hover:shadow-md ${
-                  isExceeded ? "border-[#F07862]/40 bg-[#FDF1EE]/20" : "border-[#E8EDF4]"
+                  isExceeded ? "border-expense/40 bg-expense-light/20" : "border-border"
                 }`}
               >
                 <CardHeader className="pb-3">
@@ -310,7 +315,7 @@ export default function BudgetsPage() {
                       </div>
                       <div>
                         <CardTitle className="text-sm font-semibold">{b.category?.name}</CardTitle>
-                        <span className="text-[11px] text-[#8992A3]">
+                        <span className="text-[11px] text-muted-foreground">
                           Limit: {formatCurrency(b.amount, preferredCurrency)}
                         </span>
                       </div>
@@ -320,7 +325,7 @@ export default function BudgetsPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 text-[#8992A3] hover:text-[#2878E5]"
+                        className="h-7 w-7 text-muted-foreground hover:text-primary-text"
                         onClick={() => openEditDialog(b)}
                       >
                         <Edit2 className="h-3.5 w-3.5" />
@@ -328,7 +333,7 @@ export default function BudgetsPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 text-[#8992A3] hover:text-[#F07862]"
+                        className="h-7 w-7 text-muted-foreground hover:text-expense-text"
                         onClick={() => setDeleteTargetId(b.id)}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -341,8 +346,8 @@ export default function BudgetsPage() {
                   {/* Progress bar */}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-[#8992A3]">Spent: {formatCurrency(b.spent, preferredCurrency)}</span>
-                      <span className="font-semibold text-[#202735]">{b.percentage}%</span>
+                      <span className="text-muted-foreground">Spent: {formatCurrency(b.spent, preferredCurrency)}</span>
+                      <span className="font-semibold text-main">{b.percentage}%</span>
                     </div>
 
                     <Progress
@@ -354,17 +359,17 @@ export default function BudgetsPage() {
                   {/* Status Indicator */}
                   <div className="flex items-center justify-between text-xs pt-1">
                     {isExceeded ? (
-                      <span className="inline-flex items-center gap-1 font-medium text-[#F07862]">
+                      <span className="inline-flex items-center gap-1 font-medium text-expense-text">
                         <AlertTriangle className="h-3.5 w-3.5" />
                         Exceeded by {formatCurrency(b.spent - b.amount, preferredCurrency)}
                       </span>
                     ) : isWarning ? (
-                      <span className="inline-flex items-center gap-1 font-medium text-[#E9B949]">
+                      <span className="inline-flex items-center gap-1 font-medium text-warning-foreground">
                         <AlertTriangle className="h-3.5 w-3.5" />
                         Near limit ({formatCurrency(b.remaining, preferredCurrency)} left)
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 text-[#269B72]">
+                      <span className="inline-flex items-center gap-1 text-income-text">
                         <CheckCircle2 className="h-3.5 w-3.5" />
                         {formatCurrency(b.remaining, preferredCurrency)} remaining
                       </span>
@@ -388,7 +393,7 @@ export default function BudgetsPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4 pt-2">
             {formError && (
-              <div className="rounded-lg bg-[#FDF1EE] p-3 text-xs text-[#F07862]">
+              <div className="rounded-lg bg-expense-light p-3 text-xs text-expense-text">
                 {formError}
               </div>
             )}
@@ -444,9 +449,9 @@ export default function BudgetsPage() {
               </div>
             </div>
 
-            <div className="rounded-lg bg-[#F3F6FC] p-3 text-xs text-[#8992A3]">
+            <div className="rounded-lg bg-muted p-3 text-xs text-muted-foreground">
               Target Period:{" "}
-              <span className="font-semibold text-[#202735]">
+              <span className="font-semibold text-main">
                 {MONTHS[selectedMonth - 1]} {selectedYear}
               </span>
             </div>
@@ -462,7 +467,7 @@ export default function BudgetsPage() {
               </Button>
               <Button
                 type="submit"
-                className="bg-[#2878E5] hover:bg-[#1F65C2]"
+                className="bg-primary hover:bg-primary-hover"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? "Saving..." : editingBudget ? "Update Budget" : "Create Budget"}

@@ -1,27 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth/session";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import { User } from "@/models/User";
+import { requireUser, unauthorizedResponse, internalError } from "@/lib/auth/guard";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getCurrentUser(req);
-    if (!session || !session.userId) {
-      return NextResponse.json(
-        { success: false, error: "Not authenticated" },
-        { status: 401 }
-      );
+    const auth = await requireUser(req, { checkSessionVersion: false });
+    if ("response" in auth) {
+      return NextResponse.json({ success: false, error: "Not authenticated" }, { status: 401 });
     }
 
     await connectToDatabase();
-    const user = await User.findById(session.userId).select("-passwordHash");
+    const user = await User.findById(auth.userObjectId).select("-passwordHash").lean();
     if (!user) {
-      return NextResponse.json(
-        { success: false, error: "User not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ success: false, error: "User not found" }, { status: 404 });
+    }
+
+    // Revoked by a password change elsewhere → end this session (see guard.ts tradeoff note)
+    if ((user.sessionVersion ?? 0) !== (auth.session.sv ?? 0)) {
+      return unauthorizedResponse(true);
     }
 
     return NextResponse.json({
@@ -35,11 +34,7 @@ export async function GET(req: NextRequest) {
         createdAt: user.createdAt,
       },
     });
-  } catch (error: any) {
-    console.error("Auth me error:", error);
-    return NextResponse.json(
-      { success: false, error: "Failed to retrieve user data" },
-      { status: 500 }
-    );
+  } catch (error) {
+    return internalError("auth.me_error", error, "Failed to retrieve user data", { route: "/api/auth/me" });
   }
 }

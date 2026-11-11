@@ -5,36 +5,28 @@ import { Category } from "@/models/Category";
 import { hashPassword } from "@/lib/auth/password";
 import { createSessionToken, setSessionCookie } from "@/lib/auth/session";
 import { registerSchema } from "@/lib/validations/auth";
-import { checkRateLimit } from "@/lib/auth/rateLimiter";
+import { checkRateLimitShared, rateLimitResponse } from "@/lib/auth/rateLimiter";
+import { parseJson, internalError } from "@/lib/auth/guard";
+import { recordAudit, getClientIp } from "@/lib/audit";
 import { DEFAULT_CATEGORIES } from "@/constants/defaultCategories";
 
 export async function POST(req: NextRequest) {
   try {
-    const ip = req.headers.get("x-forwarded-for") || "client";
-    const rateCheck = checkRateLimit(`register:${ip}`, { limit: 10, windowMs: 60 * 60 * 1000 });
+    const ip = getClientIp(req) || "unknown";
+    const rateCheck = await checkRateLimitShared(`register:${ip}`, {
+      limit: 10,
+      windowMs: 60 * 60 * 1000,
+    });
     if (!rateCheck.allowed) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Too many registration attempts. Please try again in ${rateCheck.resetInSeconds} seconds.`,
-        },
-        { status: 429 }
+      return rateLimitResponse(
+        rateCheck,
+        `Too many registration attempts. Please try again in ${rateCheck.resetInSeconds} seconds.`
       );
     }
 
-    const body = await req.json();
-    const validation = registerSchema.safeParse(body);
-    if (!validation.success) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: validation.error.issues[0]?.message || "Invalid input data",
-        },
-        { status: 400 }
-      );
-    }
-
-    const { name, email, password, preferredCurrency } = validation.data;
+    const body = await parseJson(req, registerSchema, "Invalid input data");
+    if ("response" in body) return body.response;
+    const { name, email, password, preferredCurrency } = body.data;
 
     await connectToDatabase();
 
@@ -71,6 +63,7 @@ export async function POST(req: NextRequest) {
       email: newUser.email,
       name: newUser.name,
       preferredCurrency: newUser.preferredCurrency,
+      sv: newUser.sessionVersion ?? 0,
     });
 
     const response = NextResponse.json(
@@ -87,12 +80,18 @@ export async function POST(req: NextRequest) {
     );
 
     setSessionCookie(response, token);
+    await recordAudit({ userId: newUser._id.toString(), action: "auth.register", req });
     return response;
-  } catch (error: any) {
-    console.error("Registration error:", error);
-    return NextResponse.json(
-      { success: false, error: "Failed to register account" },
-      { status: 500 }
-    );
+  } catch (error) {
+    // Concurrent registration with the same email hits the unique index
+    if ((error as { code?: number })?.code === 11000) {
+      return NextResponse.json(
+        { success: false, error: "An account with this email address already exists" },
+        { status: 409 }
+      );
+    }
+    return internalError("auth.register_error", error, "Failed to register account", {
+      route: "/api/auth/register",
+    });
   }
 }

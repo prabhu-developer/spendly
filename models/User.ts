@@ -8,6 +8,7 @@ export interface IUser extends Document {
   passwordHash: string;
   preferredCurrency: SupportedCurrency;
   dateFormat: string;
+  sessionVersion?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -40,6 +41,11 @@ const UserSchema = new Schema<IUser>(
     dateFormat: {
       type: String,
       default: "MM/dd/yyyy",
+    },
+    // Bumped on password change to revoke previously issued sessions
+    sessionVersion: {
+      type: Number,
+      default: 0,
     },
   },
   {

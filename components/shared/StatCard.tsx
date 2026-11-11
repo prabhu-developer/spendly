@@ -10,6 +10,10 @@ interface StatCardProps {
   currency: SupportedCurrency | string;
   changePercent?: number;
   changeLabel?: string;
+  /** Secondary line shown when there is no change indicator */
+  footnote?: ReactNode;
+  /** Override the formatted amount (e.g. percentages) */
+  valueOverride?: ReactNode;
   icon: ReactNode;
   iconBgColor?: string;
   type?: "default" | "income" | "expense" | "savings";
@@ -21,8 +25,10 @@ export function StatCard({
   currency,
   changePercent,
   changeLabel = "vs last month",
+  footnote,
+  valueOverride,
   icon,
-  iconBgColor = "bg-[#F3F6FC]",
+  iconBgColor = "bg-muted",
   type = "default",
 }: StatCardProps) {
   const isPositive = changePercent !== undefined && changePercent > 0;
@@ -30,10 +36,10 @@ export function StatCard({
   const isZero = changePercent !== undefined && changePercent === 0;
 
   return (
-    <Card className="border border-[#E8EDF4] bg-white transition-all duration-200 hover:shadow-md">
-      <CardContent className="p-6">
+    <Card className="h-full transition-shadow duration-200 hover:shadow-card-hover">
+      <CardContent className="p-5 sm:p-6">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-[#8992A3]">{title}</span>
+          <span className="text-sm font-medium text-muted-foreground">{title}</span>
           <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", iconBgColor)}>
             {icon}
           </div>
@@ -42,24 +48,27 @@ export function StatCard({
         <div className="mt-4">
           <div
             className={cn(
-              "text-2xl font-bold tracking-tight",
-              type === "income" && "text-[#269B72]",
-              type === "expense" && "text-[#F07862]",
-              type === "default" && "text-[#202735]",
-              type === "savings" && (amount >= 0 ? "text-[#2878E5]" : "text-[#F07862]")
+              "text-2xl font-semibold tracking-tight tabular-nums",
+              type === "income" && "text-income-text",
+              type === "expense" && "text-expense-text",
+              type === "default" && "text-main",
+              type === "savings" && (amount >= 0 ? "text-primary-text" : "text-expense-text")
             )}
           >
-            {formatCurrency(amount, currency)}
+            {valueOverride ?? formatCurrency(amount, currency)}
           </div>
+          {changePercent === undefined && footnote && (
+            <p className="mt-2 text-xs text-muted-foreground">{footnote}</p>
+          )}
 
           {changePercent !== undefined && (
             <div className="mt-2 flex items-center text-xs">
               <span
                 className={cn(
                   "inline-flex items-center font-medium",
-                  isPositive && (type === "expense" ? "text-[#F07862]" : "text-[#269B72]"),
-                  isNegative && (type === "expense" ? "text-[#269B72]" : "text-[#F07862]"),
-                  isZero && "text-[#8992A3]"
+                  isPositive && (type === "expense" ? "text-expense-text" : "text-income-text"),
+                  isNegative && (type === "expense" ? "text-income-text" : "text-expense-text"),
+                  isZero && "text-muted-foreground"
                 )}
               >
                 {isPositive && <ArrowUpRight className="mr-0.5 h-3.5 w-3.5" />}
@@ -67,7 +76,7 @@ export function StatCard({
                 {isZero && <Minus className="mr-0.5 h-3.5 w-3.5" />}
                 {Math.abs(changePercent)}%
               </span>
-              <span className="ml-1.5 text-[#8992A3]">{changeLabel}</span>
+              <span className="ml-1.5 text-muted-foreground">{changeLabel}</span>
             </div>
           )}
         </div>

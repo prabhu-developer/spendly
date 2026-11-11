@@ -10,14 +10,14 @@ export default function DashboardLoading() {
         {Array.from({ length: 4 }, (_, index) => (
           <div
             key={index}
-            className="h-32 animate-pulse rounded-xl border border-[#E8EDF4] bg-white"
+            className="h-32 animate-pulse rounded-xl border border-border bg-white"
           />
         ))}
       </div>
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="h-80 animate-pulse rounded-xl border border-[#E8EDF4] bg-white lg:col-span-2" />
-        <div className="h-80 animate-pulse rounded-xl border border-[#E8EDF4] bg-white" />
-        <div className="h-64 animate-pulse rounded-xl border border-[#E8EDF4] bg-white lg:col-span-3" />
+        <div className="h-80 animate-pulse rounded-xl border border-border bg-white lg:col-span-2" />
+        <div className="h-80 animate-pulse rounded-xl border border-border bg-white" />
+        <div className="h-64 animate-pulse rounded-xl border border-border bg-white lg:col-span-3" />
       </div>
     </div>
   );

@@ -18,14 +18,14 @@ export function EmptyState({
   onAction,
 }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center p-8 text-center rounded-xl border border-dashed border-[#E8EDF4] bg-white my-4">
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#F3F6FC] text-[#8992A3] mb-4">
-        {icon || <FolderOpen className="h-6 w-6 text-[#2878E5]" />}
+    <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
+      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary-light text-primary-text">
+        {icon || <FolderOpen className="h-6 w-6 text-primary-text" />}
       </div>
-      <h3 className="text-base font-semibold text-[#202735] mb-1">{title}</h3>
-      <p className="text-sm text-[#8992A3] max-w-sm mb-6">{description}</p>
+      <h3 className="text-base font-semibold text-main mb-1">{title}</h3>
+      <p className="text-sm text-muted-foreground max-w-sm mb-6">{description}</p>
       {actionLabel && onAction && (
-        <Button onClick={onAction} className="bg-[#2878E5] hover:bg-[#1F65C2]">
+        <Button onClick={onAction} size="sm">
           {actionLabel}
         </Button>
       )}

@@ -41,7 +41,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="h-full">
-      <body className={`${inter.className} min-h-screen bg-[#F3F6FC] text-[#202735]`}>
+      <body className={`${inter.className} min-h-screen bg-muted text-main`}>
         <PWABootScreen />
         <PWAControls />
         {children}

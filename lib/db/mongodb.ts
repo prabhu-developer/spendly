@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { getServerEnv } from "@/lib/env";
 
 interface MongooseCache {
   conn: typeof mongoose | null;
@@ -17,22 +18,17 @@ if (!cached) {
 }
 
 export async function connectToDatabase(): Promise<typeof mongoose> {
-  const MONGODB_URI = process.env.MONGODB_URI;
-
-  if (!MONGODB_URI) {
-    throw new Error(
-      "Please define the MONGODB_URI environment variable inside .env.local or production config"
-    );
-  }
-
   if (cached!.conn) {
     return cached!.conn;
   }
 
   if (!cached!.promise) {
+    // Throws an aggregated, value-free error if configuration is missing/invalid
+    const env = getServerEnv();
+    const MONGODB_URI = env.MONGODB_URI;
     const opts = {
       bufferCommands: false,
-      dbName: process.env.MONGODB_DB_NAME || "spendly",
+      dbName: env.MONGODB_DB_NAME,
       maxPoolSize: 10,
       serverSelectionTimeoutMS: 5000,
     };

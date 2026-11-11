@@ -60,12 +60,12 @@ export default function RegisterPage() {
   };
 
   return (
-    <Card className="border border-[#E8EDF4] bg-white shadow-sm">
+    <Card className="border border-border bg-white shadow-sm">
       <CardHeader className="space-y-1 text-center">
-        <CardTitle className="text-2xl font-bold tracking-tight text-[#202735]">
+        <CardTitle className="text-2xl font-bold tracking-tight text-main">
           Create an Account
         </CardTitle>
-        <CardDescription className="text-xs text-[#8992A3]">
+        <CardDescription className="text-xs text-muted-foreground">
           Start tracking your finances with intelligent multi-currency insights
         </CardDescription>
       </CardHeader>
@@ -73,7 +73,7 @@ export default function RegisterPage() {
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {errorMessage && (
-            <div className="flex items-center gap-2 rounded-lg bg-[#FDF1EE] p-3 text-xs text-[#F07862]">
+            <div className="flex items-center gap-2 rounded-lg bg-expense-light p-3 text-xs text-expense-text">
               <AlertCircle className="h-4 w-4 shrink-0" />
               <span>{errorMessage}</span>
             </div>
@@ -82,7 +82,7 @@ export default function RegisterPage() {
           <div className="space-y-1.5">
             <Label htmlFor="name">Full Name</Label>
             <div className="relative">
-              <User className="absolute left-3 top-2.5 h-4 w-4 text-[#8992A3]" />
+              <User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 id="name"
                 placeholder="Prabhu"
@@ -91,14 +91,14 @@ export default function RegisterPage() {
               />
             </div>
             {errors.name && (
-              <p className="text-xs text-[#F07862]">{errors.name.message}</p>
+              <p className="text-xs text-expense-text">{errors.name.message}</p>
             )}
           </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="email">Email</Label>
             <div className="relative">
-              <Mail className="absolute left-3 top-2.5 h-4 w-4 text-[#8992A3]" />
+              <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 id="email"
                 type="email"
@@ -108,7 +108,7 @@ export default function RegisterPage() {
               />
             </div>
             {errors.email && (
-              <p className="text-xs text-[#F07862]">{errors.email.message}</p>
+              <p className="text-xs text-expense-text">{errors.email.message}</p>
             )}
           </div>
 
@@ -129,7 +129,7 @@ export default function RegisterPage() {
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-[11px] text-[#8992A3]">
+            <p className="text-[11px] text-muted-foreground">
               Can be changed at any time in Settings.
             </p>
           </div>
@@ -137,7 +137,7 @@ export default function RegisterPage() {
           <div className="space-y-1.5">
             <Label htmlFor="password">Password</Label>
             <div className="relative">
-              <Lock className="absolute left-3 top-2.5 h-4 w-4 text-[#8992A3]" />
+              <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 id="password"
                 type="password"
@@ -147,13 +147,13 @@ export default function RegisterPage() {
               />
             </div>
             {errors.password && (
-              <p className="text-xs text-[#F07862]">{errors.password.message}</p>
+              <p className="text-xs text-expense-text">{errors.password.message}</p>
             )}
           </div>
 
           <Button
             type="submit"
-            className="w-full bg-[#2878E5] hover:bg-[#1F65C2]"
+            className="w-full bg-primary hover:bg-primary-hover"
             disabled={isSubmitting}
           >
             {isSubmitting ? "Creating Account..." : "Register & Start"}
@@ -161,11 +161,11 @@ export default function RegisterPage() {
         </form>
       </CardContent>
 
-      <CardFooter className="flex justify-center border-t border-[#E8EDF4] pt-4 text-xs text-[#8992A3]">
+      <CardFooter className="flex justify-center border-t border-border pt-4 text-xs text-muted-foreground">
         Already have an account?{" "}
         <Link
           href="/login"
-          className="ml-1 font-semibold text-[#2878E5] hover:underline"
+          className="ml-1 font-semibold text-primary-text hover:underline"
         >
           Sign in
         </Link>

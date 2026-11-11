@@ -1,5 +1,7 @@
 "use client";
 
+import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/api/errors";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { IconRenderer } from "@/components/shared/IconRenderer";
 import { Button } from "@/components/ui/button";
@@ -95,9 +97,10 @@ export default function CategoriesPage() {
         });
       }
       setDialogOpen(false);
+      toast.success(editingCategory ? "Category updated" : "Category added");
       refetch();
     } catch (err: any) {
-      setFormError(err.response?.data?.error || "Failed to save category");
+      setFormError(getErrorMessage(err, "Failed to save category"));
     } finally {
       setIsSubmitting(false);
     }
@@ -109,9 +112,10 @@ export default function CategoriesPage() {
     try {
       await apiClient.delete(`/categories/${deleteTargetId}`);
       setDeleteTargetId(null);
+      toast.success("Category deleted");
       refetch();
     } catch (err: any) {
-      alert(err.response?.data?.error || "Failed to delete category");
+      toast.error(getErrorMessage(err, "Failed to delete category"));
       setDeleteTargetId(null);
     } finally {
       setIsDeleting(false);
@@ -123,15 +127,15 @@ export default function CategoriesPage() {
       {/* Title & Add Button */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-[#202735]">Categories</h2>
-          <p className="text-xs text-[#8992A3]">
+          <h2 className="text-xl font-semibold tracking-tight text-main">Categories</h2>
+          <p className="text-xs text-muted-foreground">
             Organize transactions with default and custom categories, custom icons, and colors.
           </p>
         </div>
 
         <Button
           onClick={openCreateDialog}
-          className="gap-1.5 bg-[#2878E5] hover:bg-[#1F65C2]"
+          className="gap-1.5 bg-primary hover:bg-primary-hover"
         >
           <Plus className="h-4 w-4" />
           Add Category
@@ -139,12 +143,12 @@ export default function CategoriesPage() {
       </div>
 
       {/* Type Toggle Tabs */}
-      <div className="flex items-center gap-2 border-b border-[#E8EDF4] pb-3">
+      <div className="flex items-center gap-2 border-b border-border pb-3">
         <button
           onClick={() => setActiveTab("expense")}
           className={`rounded-lg px-4 py-2 text-xs font-semibold transition-colors ${activeTab === "expense"
-            ? "bg-[#2878E5] text-white"
-            : "bg-white text-[#8992A3] hover:text-[#202735] border border-[#E8EDF4]"
+            ? "bg-primary text-white"
+            : "bg-white text-muted-foreground hover:text-main border border-border"
             }`}
         >
           Expense Categories
@@ -152,8 +156,8 @@ export default function CategoriesPage() {
         <button
           onClick={() => setActiveTab("income")}
           className={`rounded-lg px-4 py-2 text-xs font-semibold transition-colors ${activeTab === "income"
-            ? "bg-[#2878E5] text-white"
-            : "bg-white text-[#8992A3] hover:text-[#202735] border border-[#E8EDF4]"
+            ? "bg-primary text-white"
+            : "bg-white text-muted-foreground hover:text-main border border-border"
             }`}
         >
           Income Categories
@@ -162,13 +166,13 @@ export default function CategoriesPage() {
 
       {/* Categories Grid */}
       {isLoading ? (
-        <div className="py-16 text-center text-xs text-[#8992A3]">Loading categories...</div>
+        <div className="py-16 text-center text-xs text-muted-foreground">Loading categories...</div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {filteredCategories.map((cat: any) => (
             <Card
               key={cat.id}
-              className="border border-[#E8EDF4] bg-white transition-all hover:shadow-sm"
+              className="border border-border bg-white transition-all hover:shadow-sm"
             >
               <CardContent className="flex items-center justify-between p-4">
                 <div className="flex items-center gap-3">
@@ -182,11 +186,11 @@ export default function CategoriesPage() {
                     <IconRenderer name={cat.icon || "Tag"} className="h-5 w-5" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-semibold text-[#202735]">{cat.name}</h3>
+                    <h3 className="text-sm font-semibold text-main">{cat.name}</h3>
                     <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className="text-[11px] capitalize text-[#8992A3]">{cat.type}</span>
+                      <span className="text-[11px] capitalize text-muted-foreground">{cat.type}</span>
                       {cat.isSystem && (
-                        <span className="inline-flex items-center gap-0.5 text-[10px] text-[#8992A3]">
+                        <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground">
                           &bull; Default
                         </span>
                       )}
@@ -198,7 +202,7 @@ export default function CategoriesPage() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-[#8992A3] hover:text-[#2878E5]"
+                    className="h-8 w-8 text-muted-foreground hover:text-primary-text"
                     onClick={() => openEditDialog(cat)}
                   >
                     <Edit2 className="h-3.5 w-3.5" />
@@ -206,7 +210,7 @@ export default function CategoriesPage() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-[#8992A3] hover:text-[#F07862]"
+                    className="h-8 w-8 text-muted-foreground hover:text-expense-text"
                     onClick={() => setDeleteTargetId(cat.id)}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -227,7 +231,7 @@ export default function CategoriesPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4 pt-2">
             {formError && (
-              <div className="rounded-lg bg-[#FDF1EE] p-3 text-xs text-[#F07862]">
+              <div className="rounded-lg bg-expense-light p-3 text-xs text-expense-text">
                 {formError}
               </div>
             )}
@@ -235,13 +239,13 @@ export default function CategoriesPage() {
             {/* Type */}
             <div className="space-y-1.5">
               <Label>Category Type</Label>
-              <div className="grid grid-cols-2 gap-2 rounded-lg bg-[#F3F6FC] p-1">
+              <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted p-1">
                 <button
                   type="button"
                   onClick={() => setType("expense")}
                   className={`rounded-md py-1.5 text-xs font-semibold ${type === "expense"
-                    ? "bg-white text-[#F07862] shadow-sm"
-                    : "text-[#8992A3]"
+                    ? "bg-white text-expense-text shadow-sm"
+                    : "text-muted-foreground"
                     }`}
                 >
                   Expense
@@ -250,8 +254,8 @@ export default function CategoriesPage() {
                   type="button"
                   onClick={() => setType("income")}
                   className={`rounded-md py-1.5 text-xs font-semibold ${type === "income"
-                    ? "bg-white text-[#269B72] shadow-sm"
-                    : "text-[#8992A3]"
+                    ? "bg-white text-income-text shadow-sm"
+                    : "text-muted-foreground"
                     }`}
                 >
                   Income
@@ -274,15 +278,15 @@ export default function CategoriesPage() {
             {/* Icon Picker */}
             <div className="space-y-1.5">
               <Label>Icon</Label>
-              <div className="grid grid-cols-7 gap-2 rounded-lg border border-[#E8EDF4] p-2 max-h-32 overflow-y-auto">
+              <div className="grid grid-cols-7 gap-2 rounded-lg border border-border p-2 max-h-32 overflow-y-auto">
                 {AVAILABLE_ICONS.map((ic) => (
                   <button
                     key={ic}
                     type="button"
                     onClick={() => setIcon(ic)}
                     className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-all ${icon === ic
-                      ? "border-[#2878E5] bg-[#EBF3FC] text-[#2878E5]"
-                      : "border-transparent text-[#8992A3] hover:bg-[#F3F6FC]"
+                      ? "border-primary bg-primary-light text-primary-text"
+                      : "border-transparent text-muted-foreground hover:bg-muted"
                       }`}
                   >
                     <IconRenderer name={ic} className="h-4 w-4" />
@@ -300,7 +304,7 @@ export default function CategoriesPage() {
                     key={c}
                     type="button"
                     onClick={() => setColor(c)}
-                    className={`h-7 w-7 rounded-full border-2 transition-transform ${color === c ? "scale-110 border-[#202735]" : "border-transparent"
+                    className={`h-7 w-7 rounded-full border-2 transition-transform ${color === c ? "scale-110 border-main" : "border-transparent"
                       }`}
                     style={{ backgroundColor: c }}
                   />
@@ -319,7 +323,7 @@ export default function CategoriesPage() {
               </Button>
               <Button
                 type="submit"
-                className="bg-[#2878E5] hover:bg-[#1F65C2]"
+                className="bg-primary hover:bg-primary-hover"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? "Saving..." : editingCategory ? "Update" : "Create"}
