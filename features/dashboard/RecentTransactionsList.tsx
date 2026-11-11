@@ -1,5 +1,7 @@
 "use client";
 
+import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/api/errors";
 import React, { useState } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
@@ -50,16 +52,17 @@ export function RecentTransactionsList({
     try {
       await apiClient.delete(`/transactions/${deleteTargetId}`);
       setDeleteTargetId(null);
+      toast.success("Transaction deleted");
       onRefresh();
     } catch (err) {
-      console.error("Delete transaction failed:", err);
+      toast.error(getErrorMessage(err, "Could not delete the transaction."));
     } finally {
       setIsDeleting(false);
     }
   };
 
   return (
-    <div className="rounded-xl border border-border bg-white p-5 shadow-sm">
+    <div className="rounded-xl border border-border bg-white p-5 shadow-card">
       <div className="flex items-center justify-between pb-4">
         <div>
           <h2 className="text-base font-semibold text-main">Recent Transactions</h2>

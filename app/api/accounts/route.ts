@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
-import { getCurrentUser } from "@/lib/auth/session";
+import { requireUser } from "@/lib/auth/guard";
+import { enforceWriteRateLimit } from "@/lib/auth/rateLimiter";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import { Account } from "@/models/Account";
 import { accountSchema } from "@/lib/validations/account";
@@ -19,10 +20,9 @@ const MAX_ACCOUNTS_PER_USER = 50;
 export async function GET(req: NextRequest) {
   const startedAt = performance.now();
   try {
-    const session = await getCurrentUser(req);
-    if (!session?.userId) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireUser(req);
+    if ("response" in auth) return auth.response;
+    const { session } = auth;
     await connectToDatabase();
     const preferred: SupportedCurrency = session.preferredCurrency || "USD";
     const ratesData = await ExchangeRateService.getExchangeRates();
@@ -43,10 +43,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getCurrentUser(req);
-    if (!session?.userId) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireUser(req);
+    if ("response" in auth) return auth.response;
+    const { session } = auth;
+    const limited = await enforceWriteRateLimit(session.userId);
+    if (limited) return limited;
     const body = await req.json().catch(() => null);
     const validation = accountSchema.safeParse(body);
     if (!validation.success) {

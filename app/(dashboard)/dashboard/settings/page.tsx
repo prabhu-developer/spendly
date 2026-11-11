@@ -120,7 +120,7 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6 max-w-4xl">
       <div>
-        <h2 className="text-xl font-bold tracking-tight text-main">Account Settings</h2>
+        <h2 className="text-xl font-semibold tracking-tight text-main">Account Settings</h2>
         <p className="text-xs text-muted-foreground">
           Manage your personal details, display currency, date formatting, and security settings.
         </p>

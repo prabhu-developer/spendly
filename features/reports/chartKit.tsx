@@ -12,13 +12,8 @@ export const CHART_COLORS = {
 } as const;
 
 /** Compact axis labels (e.g. 12.5K) — full values are in the tooltip. */
-export function compactAxisFormatter(currency: string) {
-  const nf = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 });
-  return (value: number) => {
-    void currency;
-    return nf.format(value);
-  };
-}
+const compactNumber = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 });
+export const compactAxisFormatter = (value: number) => compactNumber.format(value);
 
 interface Payload {
   color?: string;

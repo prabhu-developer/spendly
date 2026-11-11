@@ -1,5 +1,7 @@
 "use client";
 
+import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/api/errors";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { IconRenderer } from "@/components/shared/IconRenderer";
 import { Button } from "@/components/ui/button";
@@ -95,9 +97,10 @@ export default function CategoriesPage() {
         });
       }
       setDialogOpen(false);
+      toast.success(editingCategory ? "Category updated" : "Category added");
       refetch();
     } catch (err: any) {
-      setFormError(err.response?.data?.error || "Failed to save category");
+      setFormError(getErrorMessage(err, "Failed to save category"));
     } finally {
       setIsSubmitting(false);
     }
@@ -109,9 +112,10 @@ export default function CategoriesPage() {
     try {
       await apiClient.delete(`/categories/${deleteTargetId}`);
       setDeleteTargetId(null);
+      toast.success("Category deleted");
       refetch();
     } catch (err: any) {
-      alert(err.response?.data?.error || "Failed to delete category");
+      toast.error(getErrorMessage(err, "Failed to delete category"));
       setDeleteTargetId(null);
     } finally {
       setIsDeleting(false);
@@ -123,7 +127,7 @@ export default function CategoriesPage() {
       {/* Title & Add Button */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-main">Categories</h2>
+          <h2 className="text-xl font-semibold tracking-tight text-main">Categories</h2>
           <p className="text-xs text-muted-foreground">
             Organize transactions with default and custom categories, custom icons, and colors.
           </p>

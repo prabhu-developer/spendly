@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
-import { getCurrentUser } from "@/lib/auth/session";
+import { requireUser } from "@/lib/auth/guard";
+import { enforceWriteRateLimit } from "@/lib/auth/rateLimiter";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import { Transaction } from "@/models/Transaction";
 import { Category } from "@/models/Category";
@@ -15,10 +16,11 @@ import { bulkSchema } from "@/lib/transactions/bulk";
  */
 export async function POST(req: NextRequest) {
   try {
-    const session = await getCurrentUser(req);
-    if (!session?.userId) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireUser(req);
+    if ("response" in auth) return auth.response;
+    const { session } = auth;
+    const limited = await enforceWriteRateLimit(session.userId);
+    if (limited) return limited;
     const parsed = bulkSchema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) {
       return NextResponse.json(

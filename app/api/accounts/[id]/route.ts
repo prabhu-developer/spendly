@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
-import { getCurrentUser } from "@/lib/auth/session";
+import { requireUser } from "@/lib/auth/guard";
+import { enforceWriteRateLimit } from "@/lib/auth/rateLimiter";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import { Account } from "@/models/Account";
 import { Transaction } from "@/models/Transaction";
@@ -13,10 +14,11 @@ type Params = { params: Promise<{ id: string }> };
 export async function PUT(req: NextRequest, { params }: Params) {
   try {
     const { id } = await params;
-    const session = await getCurrentUser(req);
-    if (!session?.userId) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireUser(req);
+    if ("response" in auth) return auth.response;
+    const { session } = auth;
+    const limited = await enforceWriteRateLimit(session.userId);
+    if (limited) return limited;
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json({ success: false, error: "Invalid account ID" }, { status: 400 });
     }
@@ -76,10 +78,11 @@ export async function PUT(req: NextRequest, { params }: Params) {
 export async function DELETE(req: NextRequest, { params }: Params) {
   try {
     const { id } = await params;
-    const session = await getCurrentUser(req);
-    if (!session?.userId) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireUser(req);
+    if ("response" in auth) return auth.response;
+    const { session } = auth;
+    const limited = await enforceWriteRateLimit(session.userId);
+    if (limited) return limited;
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json({ success: false, error: "Invalid account ID" }, { status: 400 });
     }

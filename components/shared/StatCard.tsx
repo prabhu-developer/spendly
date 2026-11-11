@@ -10,6 +10,10 @@ interface StatCardProps {
   currency: SupportedCurrency | string;
   changePercent?: number;
   changeLabel?: string;
+  /** Secondary line shown when there is no change indicator */
+  footnote?: ReactNode;
+  /** Override the formatted amount (e.g. percentages) */
+  valueOverride?: ReactNode;
   icon: ReactNode;
   iconBgColor?: string;
   type?: "default" | "income" | "expense" | "savings";
@@ -21,6 +25,8 @@ export function StatCard({
   currency,
   changePercent,
   changeLabel = "vs last month",
+  footnote,
+  valueOverride,
   icon,
   iconBgColor = "bg-muted",
   type = "default",
@@ -30,8 +36,8 @@ export function StatCard({
   const isZero = changePercent !== undefined && changePercent === 0;
 
   return (
-    <Card className="border border-border bg-white transition-all duration-200 hover:shadow-md">
-      <CardContent className="p-6">
+    <Card className="h-full transition-shadow duration-200 hover:shadow-card-hover">
+      <CardContent className="p-5 sm:p-6">
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-muted-foreground">{title}</span>
           <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", iconBgColor)}>
@@ -42,15 +48,18 @@ export function StatCard({
         <div className="mt-4">
           <div
             className={cn(
-              "text-2xl font-bold tracking-tight",
+              "text-2xl font-semibold tracking-tight tabular-nums",
               type === "income" && "text-income-text",
               type === "expense" && "text-expense-text",
               type === "default" && "text-main",
               type === "savings" && (amount >= 0 ? "text-primary-text" : "text-expense-text")
             )}
           >
-            {formatCurrency(amount, currency)}
+            {valueOverride ?? formatCurrency(amount, currency)}
           </div>
+          {changePercent === undefined && footnote && (
+            <p className="mt-2 text-xs text-muted-foreground">{footnote}</p>
+          )}
 
           {changePercent !== undefined && (
             <div className="mt-2 flex items-center text-xs">

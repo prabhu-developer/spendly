@@ -12,7 +12,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-white shadow-sm">
             <Wallet className="h-4 w-4" />
           </div>
-          <span className="text-xl font-bold tracking-tight text-main">Spendly</span>
+          <span className="text-xl font-semibold tracking-tight text-main">Spendly</span>
         </Link>
       </header>
 

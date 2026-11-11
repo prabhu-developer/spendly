@@ -12,6 +12,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { safeRedirectPath } from "@/lib/utils/safeRedirect";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -34,7 +35,9 @@ export default function LoginPage() {
     try {
       const res = await apiClient.post("/auth/login", data);
       if (res.data.success) {
-        router.push("/dashboard");
+        // Return to the page that required login (same-site paths only)
+        const redirect = new URLSearchParams(window.location.search).get("redirect");
+        router.push(safeRedirectPath(redirect));
         router.refresh();
       }
     } catch (err: any) {

@@ -83,7 +83,7 @@ export function ReportCharts({
                       tickLine={false}
                       axisLine={false}
                       width={56}
-                      tickFormatter={compactAxisFormatter(currency)}
+                      tickFormatter={compactAxisFormatter}
                     />
                     <Tooltip content={<ChartTooltip currency={currency} />} cursor={{ fill: "rgba(40,120,229,0.06)" }} />
                     <Legend wrapperStyle={{ paddingTop: 12, fontSize: 12 }} iconType="circle" iconSize={8} />
@@ -230,7 +230,10 @@ export function ReportCharts({
                       paddingAngle={2}
                       stroke="#fff"
                       strokeWidth={2}
-                      onClick={(entry: { id?: string }) => entry?.id && drillDown(entry.id)}
+                      onClick={(entry: { id?: string; payload?: { id?: string } }) => {
+                        const id = entry?.id ?? entry?.payload?.id;
+                        if (id) drillDown(id);
+                      }}
                       className="cursor-pointer focus:outline-none"
                     >
                       {categoryBreakdown.map((entry) => (

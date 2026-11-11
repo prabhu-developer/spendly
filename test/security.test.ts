@@ -164,3 +164,17 @@ describe("assertSameOrigin", () => {
     ).toBeNull();
   });
 });
+
+import { safeRedirectPath } from "@/lib/utils/safeRedirect";
+
+describe("safeRedirectPath", () => {
+  it("allows same-site paths with query", () => {
+    expect(safeRedirectPath("/dashboard/reports?from=2026-01-01")).toBe("/dashboard/reports?from=2026-01-01");
+  });
+  it.each(["https://evil.com", "//evil.com", "/\\evil.com", "javascript:alert(1)", "", null, "dashboard"])(
+    "rejects %s",
+    (value) => {
+      expect(safeRedirectPath(value as string | null)).toBe("/dashboard");
+    }
+  );
+});

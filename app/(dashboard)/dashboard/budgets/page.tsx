@@ -1,5 +1,8 @@
 "use client";
 
+import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/api/errors";
+import { invalidateFinancialData } from "@/lib/api/queries";
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
@@ -150,9 +153,10 @@ export default function BudgetsPage() {
         });
       }
       setDialogOpen(false);
-      refetch();
+      toast.success(editingBudget ? "Budget updated" : "Budget saved");
+      void invalidateFinancialData(queryClient);
     } catch (err: any) {
-      setFormError(err.response?.data?.error || "Failed to save budget");
+      setFormError(getErrorMessage(err, "Failed to save budget"));
     } finally {
       setIsSubmitting(false);
     }
@@ -164,9 +168,10 @@ export default function BudgetsPage() {
     try {
       await apiClient.delete(`/budgets/${deleteTargetId}`);
       setDeleteTargetId(null);
-      refetch();
+      toast.success("Budget deleted");
+      void invalidateFinancialData(queryClient);
     } catch (err) {
-      console.error("Delete budget failed:", err);
+      toast.error(getErrorMessage(err, "Failed to delete budget"));
     } finally {
       setIsDeleting(false);
     }
@@ -177,7 +182,7 @@ export default function BudgetsPage() {
       {/* Page Title & Actions */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-main">Budgets</h2>
+          <h2 className="text-xl font-semibold tracking-tight text-main">Budgets</h2>
           <p className="text-xs text-muted-foreground">
             Set category limits, monitor spending progress, and prevent budget overruns.
           </p>

@@ -74,7 +74,7 @@ export function Sidebar({ user, className, onNavigate }: SidebarProps) {
             <Wallet className="h-5 w-5" />
           </div>
           <div>
-            <span className="text-xl font-bold tracking-tight text-main">
+            <span className="text-xl font-semibold tracking-tight text-main">
               Spendly
             </span>
             <span className="block text-[11px] font-medium tracking-wider text-muted-foreground">

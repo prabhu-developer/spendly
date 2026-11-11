@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth/session";
+import { requireUser } from "@/lib/auth/guard";
+import { enforceWriteRateLimit } from "@/lib/auth/rateLimiter";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import { Transaction } from "@/models/Transaction";
 import { Category } from "@/models/Category";
@@ -17,10 +18,9 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const session = await getCurrentUser(req);
-    if (!session || !session.userId) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireUser(req);
+    if ("response" in auth) return auth.response;
+    const { session } = auth;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json({ success: false, error: "Invalid transaction ID" }, { status: 400 });
@@ -60,10 +60,11 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const session = await getCurrentUser(req);
-    if (!session || !session.userId) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireUser(req);
+    if ("response" in auth) return auth.response;
+    const { session } = auth;
+    const limited = await enforceWriteRateLimit(session.userId);
+    if (limited) return limited;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json({ success: false, error: "Invalid transaction ID" }, { status: 400 });
@@ -198,10 +199,11 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const session = await getCurrentUser(req);
-    if (!session || !session.userId) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireUser(req);
+    if ("response" in auth) return auth.response;
+    const { session } = auth;
+    const limited = await enforceWriteRateLimit(session.userId);
+    if (limited) return limited;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json({ success: false, error: "Invalid transaction ID" }, { status: 400 });

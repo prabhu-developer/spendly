@@ -54,7 +54,7 @@ export interface TransactionRecord {
   category?: { id: string } | null;
   account?: { id: string } | null;
   date: string | Date;
-  paymentMethod?: TransactionInput["paymentMethod"];
+  paymentMethod?: TransactionInput["paymentMethod"] | string;
   notes?: string;
 }
 
@@ -121,7 +121,7 @@ export function TransactionForm({
         date: initialData.date
           ? format(new Date(initialData.date), "yyyy-MM-dd")
           : format(new Date(), "yyyy-MM-dd"),
-        paymentMethod: initialData.paymentMethod || "Other",
+        paymentMethod: (initialData.paymentMethod || "Other") as TransactionInput["paymentMethod"],
         notes: initialData.notes || "",
         accountId: initialData.account?.id ?? null,
       });

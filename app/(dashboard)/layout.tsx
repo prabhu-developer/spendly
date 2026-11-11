@@ -1,5 +1,6 @@
 import React from "react";
 import { getCurrentUser } from "@/lib/auth/session";
+import { isSessionRevoked } from "@/lib/auth/guard";
 import { redirect } from "next/navigation";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { connectToDatabase } from "@/lib/db/mongodb";
@@ -19,6 +20,10 @@ export default async function DashboardLayout({
   }
 
   await connectToDatabase();
+  // Sessions revoked by a password change must not keep reading pages
+  if (await isSessionRevoked(session)) {
+    redirect("/login");
+  }
   const userObjectId = new mongoose.Types.ObjectId(session.userId);
   const cats = await Category.find({
     $or: [{ userId: userObjectId }, { isSystem: true }],

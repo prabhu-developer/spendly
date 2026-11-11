@@ -1,636 +1,959 @@
 "use client";
 
-import React, { useState } from "react";
-import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
-import { apiClient } from "@/lib/api/client";
-import { formatCurrency, isValidCurrency } from "@/lib/currency/currencies";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { IconRenderer } from "@/components/shared/IconRenderer";
-import { EmptyState } from "@/components/shared/EmptyState";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { ColumnSizingState, RowSelectionState, VisibilityState } from "@tanstack/react-table";
+import { format } from "date-fns";
+import { toast } from "sonner";
 import {
-  Plus,
-  Search,
-  Edit2,
-  Trash2,
-  ArrowUpRight,
   ArrowDownRight,
+  ArrowUpRight,
+  Bookmark,
   ChevronLeft,
   ChevronRight,
+  Columns3,
+  Download,
+  Edit2,
   Eye,
+  FilterX,
+  Plus,
+  Search,
+  SlidersHorizontal,
+  Trash2,
+  X,
 } from "lucide-react";
-import { format } from "date-fns";
-import { useRouter } from "next/navigation";
+import { apiClient } from "@/lib/api/client";
+import { getErrorMessage } from "@/lib/api/errors";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  invalidateFinancialData,
+  useAccounts,
+  useCategories,
+  useCurrentUser,
+} from "@/lib/api/queries";
+import { formatCurrency, isValidCurrency } from "@/lib/currency/currencies";
+import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
+import { downloadCsv, toCsv } from "@/lib/reports/csv";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { OfflineDraftsPanel } from "@/components/offline/OfflineDraftsPanel";
+import { COLUMN_LABELS, TransactionsTable } from "@/features/transactions/TransactionsTable";
+import {
+  PAGE_SIZES,
+  toSearchParams,
+  useTransactionsUrlState,
+  type Filters,
+  type SortBy,
+} from "@/features/transactions/useTransactionsUrlState";
+import { useLocalPreference } from "@/lib/hooks/useLocalPreference";
+import type { TransactionRow, TransactionsResponse } from "@/features/transactions/types";
 
 const TransactionDialog = dynamic(
-  () =>
-    import("@/components/transactions/TransactionDialog").then(
-      (module) => module.TransactionDialog
-    ),
+  () => import("@/components/transactions/TransactionDialog").then((m) => m.TransactionDialog),
   { ssr: false }
 );
 
+const HIDEABLE_COLUMNS = ["category", "account", "date", "paymentMethod"] as const;
+
+interface SavedView {
+  id: string;
+  name: string;
+  query: string;
+}
+
 export default function TransactionsPage() {
-  const queryClient = useQueryClient();
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const { state, update, setFilter, activeFilterCount } = useTransactionsUrlState();
+  const { filters, sortBy, sortOrder, page, limit } = state;
 
-  // Filters & State
-  const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState("all");
-  const [categoryFilter, setCategoryFilter] = useState("all");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [sortBy, setSortBy] = useState("date");
-  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
-  const [page, setPage] = useState(1);
-  const limit = 10;
+  const { data: user } = useCurrentUser();
+  const { data: categories = [] } = useCategories();
+  const { data: sheet } = useAccounts();
+  const accounts = sheet?.accounts ?? [];
+  const userId: string | undefined = user?.id ?? user?.userId;
 
-  // Modals
-  const [editingTransaction, setEditingTransaction] = useState<any | null>(null);
-  const [viewingTransaction, setViewingTransaction] = useState<any | null>(null);
-  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+  // Search box is local state, debounced into the URL
+  const [searchInput, setSearchInput] = useState(filters.search ?? "");
+  const debouncedSearch = useDebouncedValue(searchInput.trim(), 300);
+  useEffect(() => {
+    if ((filters.search ?? "") !== debouncedSearch) setFilter("search", debouncedSearch || undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch]);
+  useEffect(() => {
+    // Keep input in sync when URL changes externally (drill-down, saved view, back button)
+    setSearchInput((current) => (current.trim() === (filters.search ?? "") ? current : filters.search ?? ""));
+  }, [filters.search]);
 
-  // User
-  const { data: userData } = useQuery({
-    queryKey: ["currentUser"],
-    queryFn: async () => {
-      const res = await apiClient.get("/auth/me");
-      return res.data.user;
-    },
-  });
+  const [showAdvanced, setShowAdvanced] = useState(
+    Boolean(filters.minAmount || filters.maxAmount || filters.accountId)
+  );
 
-  // Categories
-  const { data: categoriesData } = useQuery({
-    queryKey: ["categories"],
-    queryFn: async () => {
-      const res = await apiClient.get("/categories");
-      return res.data.categories;
-    },
-  });
+  // Per-device table preferences
+  const prefKey = userId ? `spendly:tx-table:${userId}` : null;
+  const [columnVisibility, setColumnVisibility] = useLocalPreference<VisibilityState>(
+    prefKey && `${prefKey}:columns`,
+    {}
+  );
+  const [columnSizing, setColumnSizing] = useLocalPreference<ColumnSizingState>(prefKey && `${prefKey}:sizes`, {});
+  const [savedViews, setSavedViews] = useLocalPreference<SavedView[]>(prefKey && `${prefKey}:views`, []);
 
-  // Debounce search so typing doesn't fire a request per keystroke
-  const debouncedSearch = useDebouncedValue(search.trim(), 300);
-
-  // Fetch transactions with query params (server-side filtering, sorting, pagination)
-  const { data: transactionsData, isLoading, isFetching, isError, refetch } = useQuery({
-    queryKey: [
-      "transactions",
-      { search: debouncedSearch, typeFilter, categoryFilter, startDate, endDate, sortBy, sortOrder, page },
-    ],
-    staleTime: 0,
-    // Keep the current page visible while the next one loads (no flash of empty table)
+  const apiParams = useMemo(() => toSearchParams({ ...state }).toString(), [state]);
+  const { data, isLoading, isFetching, isError, refetch } = useQuery<TransactionsResponse>({
+    queryKey: ["transactions", apiParams, limit],
     placeholderData: keepPreviousData,
     queryFn: async ({ signal }) => {
-      const params = new URLSearchParams();
-      if (debouncedSearch) params.set("search", debouncedSearch);
-      if (typeFilter !== "all") params.set("type", typeFilter);
-      if (categoryFilter !== "all") params.set("categoryId", categoryFilter);
-      if (startDate) params.set("startDate", startDate);
-      if (endDate) params.set("endDate", endDate);
-      params.set("sortBy", sortBy);
-      params.set("sortOrder", sortOrder);
-      params.set("page", page.toString());
-      params.set("limit", limit.toString());
-
-      // `signal` cancels superseded requests when filters change
-      const res = await apiClient.get(`/transactions?${params.toString()}`, { signal });
-      return res.data;
+      const params = new URLSearchParams(apiParams);
+      params.set("limit", String(limit));
+      params.set("page", String(page));
+      return (await apiClient.get(`/transactions?${params}`, { signal })).data;
     },
   });
 
-  const preferredCurrency = isValidCurrency(userData?.preferredCurrency)
-    ? userData.preferredCurrency
-    : null;
-  const editingCurrency = preferredCurrency || (
-    isValidCurrency(editingTransaction?.currency) ? editingTransaction.currency : null
-  );
-  const categories = categoriesData || [];
-  const transactions = transactionsData?.transactions || [];
-  const pagination = transactionsData?.pagination || { page: 1, totalPages: 1, total: 0 };
+  const rows = useMemo(() => data?.transactions ?? [], [data]);
+  const pagination = data?.pagination ?? { page: 1, totalPages: 1, total: 0, limit };
 
-  const handleDelete = async () => {
-    if (!deleteTargetId) return;
-    setIsDeleting(true);
+  // Selection persists across pages (keyed by id); cache selected rows for export
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [selectedCache, setSelectedCache] = useState<Record<string, TransactionRow>>({});
+  useEffect(() => {
+    setSelectedCache((cache) => {
+      const next = { ...cache };
+      for (const row of rows) if (rowSelection[row.id]) next[row.id] = row;
+      for (const id of Object.keys(next)) if (!rowSelection[id]) delete next[id];
+      return next;
+    });
+  }, [rowSelection, rows]);
+  const selectedIds = Object.keys(rowSelection).filter((id) => rowSelection[id]);
+  const clearSelection = () => setRowSelection({});
+  // Changing filters starts a new selection to avoid acting on hidden rows
+  useEffect(() => clearSelection(), [apiParams.replace(/(^|&)(page|limit|sortBy|sortOrder)=[^&]*/g, "")]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Dialogs
+  const [editing, setEditing] = useState<TransactionRow | null>(null);
+  const [viewing, setViewing] = useState<TransactionRow | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<TransactionRow | null>(null);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const preferredCurrency = isValidCurrency(user?.preferredCurrency) ? user.preferredCurrency : null;
+  const editingCurrency =
+    preferredCurrency || (isValidCurrency(editing?.currency) ? editing!.currency : null);
+
+  const refreshAll = useCallback(() => invalidateFinancialData(queryClient), [queryClient]);
+
+  const onSort = useCallback(
+    (column: SortBy) => {
+      if (sortBy === column) update({ sortOrder: sortOrder === "desc" ? "asc" : "desc" });
+      else update({ sortBy: column, sortOrder: column === "title" ? "asc" : "desc" });
+    },
+    [sortBy, sortOrder, update]
+  );
+  const onView = useCallback((r: TransactionRow) => setViewing(r), []);
+  const onEdit = useCallback((r: TransactionRow) => setEditing(r), []);
+  const onDelete = useCallback((r: TransactionRow) => setDeleteTarget(r), []);
+
+  const deleteOne = async () => {
+    if (!deleteTarget) return;
+    setBusy(true);
     try {
-      await apiClient.delete(`/transactions/${deleteTargetId}`);
-      setDeleteTargetId(null);
-      refetch();
-      queryClient.invalidateQueries({ queryKey: ["reports"] });
-    } catch (err) {
-      console.error("Delete failed:", err);
+      await apiClient.delete(`/transactions/${deleteTarget.id}`);
+      toast.success("Transaction deleted");
+      setRowSelection((s) => {
+        const { [deleteTarget.id]: _removed, ...rest } = s;
+        return rest;
+      });
+      setDeleteTarget(null);
+      await refreshAll();
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Could not delete the transaction."));
     } finally {
-      setIsDeleting(false);
+      setBusy(false);
     }
   };
 
-  const handleRefresh = () => {
-    refetch();
-    queryClient.invalidateQueries({ queryKey: ["reports"] });
-    queryClient.invalidateQueries({ queryKey: ["budgets"] });
+  const runBulk = async (
+    body: { action: "delete" } | { action: "categorize"; categoryId: string } | { action: "assignAccount"; accountId: string | null },
+    success: (affected: number, skipped?: number) => string
+  ) => {
+    setBusy(true);
+    try {
+      const res = await apiClient.post("/transactions/bulk", { ...body, ids: selectedIds });
+      toast.success(success(res.data.affected, res.data.skipped));
+      clearSelection();
+      setBulkDeleteOpen(false);
+      await refreshAll();
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Bulk update failed."));
+    } finally {
+      setBusy(false);
+    }
   };
 
+  const exportSelected = () => {
+    const selected = selectedIds.map((id) => selectedCache[id]).filter(Boolean);
+    const csv = toCsv(
+      selected.map((t) => ({
+        date: format(new Date(t.date), "yyyy-MM-dd"),
+        title: t.title,
+        type: t.type,
+        amount: t.amount,
+        signed: t.type === "expense" ? -t.amount : t.amount,
+        currency: t.currency,
+        category: t.category.name,
+        account: t.account?.name ?? "",
+        method: t.paymentMethod,
+        notes: t.notes,
+      })),
+      [
+        { key: "date", header: "Date" },
+        { key: "title", header: "Title" },
+        { key: "type", header: "Type" },
+        { key: "amount", header: "Amount" },
+        { key: "signed", header: "Signed amount" },
+        { key: "currency", header: "Currency" },
+        { key: "category", header: "Category" },
+        { key: "account", header: "Account" },
+        { key: "method", header: "Payment method" },
+        { key: "notes", header: "Notes" },
+      ]
+    );
+    downloadCsv(`spendly-selected-${format(new Date(), "yyyy-MM-dd")}.csv`, csv);
+    toast.success(`Exported ${selected.length} transaction${selected.length === 1 ? "" : "s"}`);
+  };
+
+  const exportFiltered = () => {
+    const params = new URLSearchParams(apiParams);
+    ["page", "limit", "sortBy", "sortOrder"].forEach((k) => params.delete(k));
+    // Server streams CSV (up to 50k rows) as a file download
+    window.location.href = `/api/transactions/export?${params}`;
+  };
+
+  const saveCurrentView = () => {
+    const name = window.prompt("Name this view", "My view")?.trim();
+    if (!name) return;
+    const query = toSearchParams({ ...state, page: 1 }).toString();
+    setSavedViews((views) => [...views.filter((v) => v.name !== name), { id: crypto.randomUUID(), name, query }].slice(-12));
+    toast.success(`Saved view “${name}”`);
+  };
+
+  const clearFilters = () => {
+    setSearchInput("");
+    update({ filters: {} });
+  };
+
+  const typeCategories = categories.filter((c) => !filters.type || c.type === filters.type);
+  const totalLabel = `${pagination.total.toLocaleString()} transaction${pagination.total === 1 ? "" : "s"}`;
+  const firstRow = pagination.total === 0 ? 0 : (pagination.page - 1) * pagination.limit + 1;
+  const lastRow = Math.min(pagination.page * pagination.limit, pagination.total);
+
   return (
-    <div className="space-y-6">
-      {/* Header and Add Button */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-xl font-bold tracking-tight text-main">Transactions</h2>
-          <p className="text-xs text-muted-foreground">
-            Manage, filter, and track all your income and expenses.
-          </p>
-        </div>
+    <div className="space-y-5">
+      <PageHeader
+        title="Transactions"
+        description="Search, filter and manage every income and expense."
+        actions={
+          <>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Download className="h-4 w-4" />
+                  Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-60">
+                <DropdownMenuItem onClick={exportFiltered} className="cursor-pointer flex-col items-start gap-0">
+                  <span className="text-sm">Export {activeFilterCount ? "filtered" : "all"} (CSV)</span>
+                  <span className="text-[11px] text-muted-foreground">Opens in Excel, Numbers and Sheets</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={!selectedIds.length}
+                  onClick={exportSelected}
+                  className="cursor-pointer"
+                >
+                  Export selected ({selectedIds.length})
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button size="sm" onClick={() => router.push("/dashboard/transactions/new")}>
+              <Plus className="h-4 w-4" />
+              Add transaction
+            </Button>
+          </>
+        }
+      />
 
-        <Button
-          onClick={() => router.push("/dashboard/transactions/new")}
-          className="gap-1.5 bg-primary hover:bg-primary-hover"
-        >
-          <Plus className="h-4 w-4" />
-          Add Transaction
-        </Button>
-      </div>
+      {userId && <OfflineDraftsPanel userId={userId} />}
 
-      {/* Filter and Search Bar */}
-      <div className="rounded-xl border border-border bg-white p-4 shadow-sm space-y-3">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+      {/* Filters */}
+      <section aria-label="Filters" className="space-y-3 rounded-xl border border-border bg-white p-3 shadow-card sm:p-4">
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search transactions..."
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
-              className="pl-9 h-9 text-xs"
+              data-page-search
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Search by title…  ( / )"
+              aria-label="Search transactions"
+              className="h-9 pl-9 pr-8 text-sm"
+              maxLength={100}
+            />
+            {searchInput && (
+              <button
+                type="button"
+                onClick={() => setSearchInput("")}
+                aria-label="Clear search"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:bg-muted"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:flex">
+            <Select value={filters.type ?? "all"} onValueChange={(v) => setFilter("type", v)}>
+              <SelectTrigger className="h-9 text-xs lg:w-32" aria-label="Type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All types</SelectItem>
+                <SelectItem value="expense">Expenses</SelectItem>
+                <SelectItem value="income">Income</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filters.categoryId ?? "all"} onValueChange={(v) => setFilter("categoryId", v)}>
+              <SelectTrigger className="h-9 text-xs lg:w-40" aria-label="Category">
+                <SelectValue placeholder="All categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All categories</SelectItem>
+                {typeCategories.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                    {!filters.type && <span className="text-muted-foreground"> · {c.type}</span>}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input
+              type="date"
+              value={filters.startDate ?? ""}
+              max={filters.endDate}
+              onChange={(e) => setFilter("startDate", e.target.value || undefined)}
+              className="h-9 text-xs lg:w-36"
+              aria-label="From date"
+            />
+            <Input
+              type="date"
+              value={filters.endDate ?? ""}
+              min={filters.startDate}
+              onChange={(e) => setFilter("endDate", e.target.value || undefined)}
+              className="h-9 text-xs lg:w-36"
+              aria-label="To date"
             />
           </div>
-
-          {/* Type Filter */}
-          <Select
-            value={typeFilter}
-            onValueChange={(val) => {
-              setTypeFilter(val);
-              setPage(1);
-            }}
+          <Button
+            variant={showAdvanced ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => setShowAdvanced((v) => !v)}
+            aria-expanded={showAdvanced}
+            className="h-9"
           >
-            <SelectTrigger className="h-9 text-xs">
-              <SelectValue placeholder="All Types" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="expense">Expense Only</SelectItem>
-              <SelectItem value="income">Income Only</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {/* Category Filter */}
-          <Select
-            value={categoryFilter}
-            onValueChange={(val) => {
-              setCategoryFilter(val);
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className="h-9 text-xs">
-              <SelectValue placeholder="All Categories" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              {categories.map((cat: any) => (
-                <SelectItem key={cat.id} value={cat.id}>
-                  {cat.name} ({cat.type})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {/* Date Range Start */}
-          <Input
-            type="date"
-            value={startDate}
-            onChange={(e) => {
-              setStartDate(e.target.value);
-              setPage(1);
-            }}
-            className="h-9 text-xs"
-            placeholder="From Date"
-          />
-
-          {/* Date Range End */}
-          <Input
-            type="date"
-            value={endDate}
-            onChange={(e) => {
-              setEndDate(e.target.value);
-              setPage(1);
-            }}
-            className="h-9 text-xs"
-            placeholder="To Date"
-          />
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+            More
+          </Button>
         </div>
 
-        {/* Sorting options */}
-        <div className="flex flex-wrap items-center justify-between border-t border-border pt-3 text-xs text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <span>Sort by:</span>
-            <button
-              onClick={() => {
-                if (sortBy === "date") {
-                  setSortOrder(sortOrder === "desc" ? "asc" : "desc");
-                } else {
-                  setSortBy("date");
-                  setSortOrder("desc");
-                }
+        {showAdvanced && (
+          <div className="grid grid-cols-2 gap-2 border-t border-border pt-3 sm:grid-cols-4 animate-fade-in">
+            <Select value={filters.accountId ?? "all"} onValueChange={(v) => setFilter("accountId", v)}>
+              <SelectTrigger className="h-9 text-xs" aria-label="Account">
+                <SelectValue placeholder="All accounts" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All accounts</SelectItem>
+                <SelectItem value="unassigned">No account</SelectItem>
+                {accounts.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>
+                    {a.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <AmountInput
+              label="Min amount"
+              value={filters.minAmount}
+              onCommit={(v) => setFilter("minAmount", v)}
+            />
+            <AmountInput
+              label="Max amount"
+              value={filters.maxAmount}
+              onCommit={(v) => setFilter("maxAmount", v)}
+            />
+            <SavedViewsMenu
+              views={savedViews}
+              onApply={(v) => router.replace(`/dashboard/transactions${v.query ? `?${v.query}` : ""}`, { scroll: false })}
+              onSave={saveCurrentView}
+              onDelete={(id) => setSavedViews((views) => views.filter((v) => v.id !== id))}
+            />
+          </div>
+        )}
+
+        {activeFilterCount > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <ActiveFilterChips
+              filters={filters}
+              categoryName={(id) => categories.find((c) => c.id === id)?.name}
+              accountName={(id) => (id === "unassigned" ? "No account" : accounts.find((a) => a.id === id)?.name)}
+              onRemove={(key) => {
+                if (key === "search") setSearchInput("");
+                setFilter(key, undefined);
               }}
-              className={`flex items-center gap-1 rounded px-2 py-1 font-medium transition-colors ${
-                sortBy === "date" ? "bg-muted text-primary-text" : "hover:text-main"
-              }`}
-            >
-              Date {sortBy === "date" && (sortOrder === "desc" ? "↓" : "↑")}
-            </button>
+            />
             <button
-              onClick={() => {
-                if (sortBy === "amount") {
-                  setSortOrder(sortOrder === "desc" ? "asc" : "desc");
-                } else {
-                  setSortBy("amount");
-                  setSortOrder("desc");
-                }
-              }}
-              className={`flex items-center gap-1 rounded px-2 py-1 font-medium transition-colors ${
-                sortBy === "amount" ? "bg-muted text-primary-text" : "hover:text-main"
-              }`}
+              type="button"
+              onClick={clearFilters}
+              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-expense-text hover:bg-expense-light"
             >
-              Amount {sortBy === "amount" && (sortOrder === "desc" ? "↓" : "↑")}
+              <FilterX className="h-3.5 w-3.5" />
+              Clear all
             </button>
           </div>
+        )}
+      </section>
 
-          {(search || typeFilter !== "all" || categoryFilter !== "all" || startDate || endDate) && (
-            <button
-              onClick={() => {
-                setSearch("");
-                setTypeFilter("all");
-                setCategoryFilter("all");
-                setStartDate("");
-                setEndDate("");
-                setPage(1);
-              }}
-              className="text-expense-text hover:underline"
+      {/* Bulk actions */}
+      {selectedIds.length > 0 && (
+        <div
+          role="region"
+          aria-label="Bulk actions"
+          className="sticky top-16 z-20 flex flex-wrap items-center gap-2 rounded-xl border border-primary/30 bg-primary-light px-3 py-2 shadow-card animate-slide-up"
+        >
+          <span className="text-sm font-medium text-main">
+            {selectedIds.length} selected
+          </span>
+          <button type="button" onClick={clearSelection} className="text-xs text-primary-text hover:underline">
+            Clear
+          </button>
+          <div className="ml-auto flex flex-wrap gap-2">
+            <Select
+              value=""
+              onValueChange={(categoryId) =>
+                void runBulk({ action: "categorize", categoryId }, (n, skipped) =>
+                  `Updated ${n} transaction${n === 1 ? "" : "s"}${skipped ? ` · ${skipped} skipped (type mismatch)` : ""}`
+                )
+              }
+              disabled={busy}
             >
-              Clear filters
-            </button>
-          )}
+              <SelectTrigger className="h-8 w-40 bg-white text-xs" aria-label="Change category for selected">
+                <SelectValue placeholder="Set category…" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name} · {c.type}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {accounts.length > 0 && (
+              <Select
+                value=""
+                onValueChange={(v) =>
+                  void runBulk({ action: "assignAccount", accountId: v === "none" ? null : v }, (n) =>
+                    `Moved ${n} transaction${n === 1 ? "" : "s"}`
+                  )
+                }
+                disabled={busy}
+              >
+                <SelectTrigger className="h-8 w-40 bg-white text-xs" aria-label="Assign account for selected">
+                  <SelectValue placeholder="Set account…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No account</SelectItem>
+                  {accounts.filter((a) => !a.isArchived).map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {a.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Button variant="outline" size="sm" className="h-8" onClick={exportSelected}>
+              <Download className="h-3.5 w-3.5" />
+              Export
+            </Button>
+            <Button variant="destructive" size="sm" className="h-8" onClick={() => setBulkDeleteOpen(true)} disabled={busy}>
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Transaction List / Table */}
-      <div
-        className={`rounded-xl border border-border bg-white shadow-sm overflow-hidden transition-opacity ${
-          isFetching && !isLoading ? "opacity-70" : ""
-        }`}
+      {/* Table */}
+      <section
+        aria-label="Transactions"
         aria-busy={isFetching}
+        className="overflow-hidden rounded-xl border border-border bg-white shadow-card"
       >
+        <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-2.5">
+          <p className="text-xs text-muted-foreground" aria-live="polite">
+            {isLoading ? "Loading…" : totalLabel}
+            {isFetching && !isLoading && <span className="ml-2 text-primary-text">Updating…</span>}
+          </p>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="hidden h-8 text-xs text-muted-foreground md:inline-flex">
+                <Columns3 className="h-3.5 w-3.5" />
+                Columns
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuLabel className="text-xs">Visible columns</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {HIDEABLE_COLUMNS.map((id) => (
+                <DropdownMenuCheckboxItem
+                  key={id}
+                  checked={columnVisibility[id] !== false}
+                  onCheckedChange={(checked) => setColumnVisibility((v) => ({ ...v, [id]: Boolean(checked) }))}
+                  onSelect={(e) => e.preventDefault()}
+                >
+                  {COLUMN_LABELS[id]}
+                </DropdownMenuCheckboxItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => {
+                  setColumnVisibility({});
+                  setColumnSizing({});
+                }}
+                className="cursor-pointer text-xs"
+              >
+                Reset columns
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
         {isLoading ? (
-          <div className="divide-y divide-border" aria-label="Loading transactions">
-            {Array.from({ length: 6 }, (_, i) => (
-              <div key={i} className="flex items-center gap-3 px-4 py-3">
-                <div className="h-8 w-8 animate-pulse rounded-lg bg-muted" />
-                <div className="flex-1 space-y-1.5">
-                  <div className="h-3 w-1/3 animate-pulse rounded bg-muted" />
-                  <div className="h-2.5 w-1/5 animate-pulse rounded bg-muted" />
-                </div>
-                <div className="h-3 w-16 animate-pulse rounded bg-muted" />
-              </div>
-            ))}
-          </div>
-        ) : isError && !transactionsData ? (
-          <div role="alert" className="flex flex-col items-center gap-3 py-12 text-xs text-muted-foreground">
+          <TableSkeleton />
+        ) : isError && !data ? (
+          <div role="alert" className="flex flex-col items-center gap-3 py-14 text-sm text-muted-foreground">
             Transactions could not be loaded.
-            <Button variant="outline" size="sm" onClick={() => void refetch()} className="border-border">
+            <Button variant="outline" size="sm" onClick={() => void refetch()}>
               Try again
             </Button>
           </div>
-        ) : transactions.length === 0 ? (
+        ) : rows.length === 0 ? (
           <EmptyState
-            title="No transactions found"
-            description="Try adjusting your search filters or click below to record a new transaction."
-            actionLabel="Add Transaction"
-            onAction={() => router.push("/dashboard/transactions/new")}
+            title={activeFilterCount ? "No matching transactions" : "No transactions yet"}
+            description={
+              activeFilterCount
+                ? "Try widening the date range or removing a filter."
+                : "Record your first income or expense to start tracking your money."
+            }
+            actionLabel={activeFilterCount ? "Clear filters" : "Add transaction"}
+            onAction={activeFilterCount ? clearFilters : () => router.push("/dashboard/transactions/new")}
           />
         ) : (
-          <>
-            {/* Desktop Table View */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-border bg-muted/60 text-muted-foreground">
-                    <th className="py-3 px-4 font-medium">Transaction</th>
-                    <th className="py-3 px-4 font-medium">Category</th>
-                    <th className="py-3 px-4 font-medium">Date</th>
-                    <th className="py-3 px-4 font-medium">Method</th>
-                    <th className="py-3 px-4 text-right font-medium">Amount</th>
-                    <th className="py-3 px-4 text-right font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {transactions.map((t: any) => {
-                    const isIncome = t.type === "income";
-                    return (
-                      <tr key={t.id} className="transition-colors hover:bg-muted/50">
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-3">
-                            <div
-                              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-                                isIncome ? "bg-income-light text-income-text" : "bg-expense-light text-expense-text"
-                              }`}
-                            >
-                              {isIncome ? (
-                                <ArrowUpRight className="h-4 w-4" />
-                              ) : (
-                                <ArrowDownRight className="h-4 w-4" />
-                              )}
-                            </div>
-                            <div>
-                              <p className="font-semibold text-main">{t.title}</p>
-                              {t.notes && (
-                                <p className="text-[11px] text-muted-foreground truncate max-w-xs">{t.notes}</p>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-
-                        <td className="py-3 px-4">
-                          <Badge
-                            variant="secondary"
-                            className="gap-1 font-normal"
-                            style={{
-                              backgroundColor: `${t.category?.color || "#2878E5"}15`,
-                              color: t.category?.color || "#2878E5",
-                            }}
-                          >
-                            <IconRenderer name={t.category?.icon || "Tag"} className="h-3 w-3" />
-                            {t.category?.name || "General"}
-                          </Badge>
-                        </td>
-
-                        <td className="py-3 px-4 text-muted-foreground">
-                          {format(new Date(t.date), "dd MMM yyyy")}
-                        </td>
-
-                        <td className="py-3 px-4 text-muted-foreground">{t.paymentMethod}</td>
-
-                        <td className="py-3 px-4 text-right">
-                          <span
-                            className={`font-semibold ${
-                              isIncome ? "text-income-text" : "text-expense-text"
-                            }`}
-                          >
-                            {isIncome ? "+" : "-"}
-                            {formatCurrency(t.amount, t.currency)}
-                          </span>
-                        </td>
-
-                        <td className="py-3 px-4 text-right">
-                          <div className="inline-flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-muted-foreground hover:text-primary-text"
-                              onClick={() => setViewingTransaction(t)}
-                              title="Details"
-                            >
-                              <Eye className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-muted-foreground hover:text-primary-text"
-                              onClick={() => setEditingTransaction(t)}
-                              title="Edit"
-                            >
-                              <Edit2 className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-muted-foreground hover:text-expense-text"
-                              onClick={() => setDeleteTargetId(t.id)}
-                              title="Delete"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+          <div className={cn("transition-opacity", isFetching && "opacity-70")}>
+            <div className="hidden md:block">
+              <TransactionsTable
+                rows={rows}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={onSort}
+                rowSelection={rowSelection}
+                onRowSelectionChange={setRowSelection}
+                columnVisibility={columnVisibility}
+                columnSizing={columnSizing}
+                onColumnSizingChange={setColumnSizing}
+                onView={onView}
+                onEdit={onEdit}
+                onDelete={onDelete}
+              />
             </div>
-
-            {/* Mobile Cards List */}
-            <div className="divide-y divide-border p-4 md:hidden">
-              {transactions.map((t: any) => {
-                const isIncome = t.type === "income";
-                return (
-                  <div key={t.id} className="py-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <div
-                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-                            isIncome ? "bg-income-light text-income-text" : "bg-expense-light text-expense-text"
-                          }`}
-                        >
-                          {isIncome ? (
-                            <ArrowUpRight className="h-4 w-4" />
-                          ) : (
-                            <ArrowDownRight className="h-4 w-4" />
-                          )}
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-main">{t.title}</p>
-                          <p className="text-[11px] text-muted-foreground">
-                            {format(new Date(t.date), "dd MMM yyyy")} &bull; {t.category?.name}
-                          </p>
-                        </div>
-                      </div>
-
-                      <span
-                        className={`text-xs font-semibold ${
-                          isIncome ? "text-income-text" : "text-expense-text"
-                        }`}
-                      >
-                        {isIncome ? "+" : "-"}
-                        {formatCurrency(t.amount, t.currency)}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-end gap-2 pt-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 text-xs text-muted-foreground"
-                        onClick={() => setViewingTransaction(t)}
-                      >
-                        <Eye className="h-3 w-3 mr-1" /> View
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 text-xs text-muted-foreground"
-                        onClick={() => setEditingTransaction(t)}
-                      >
-                        <Edit2 className="h-3 w-3 mr-1" /> Edit
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 text-xs text-expense-text"
-                        onClick={() => setDeleteTargetId(t.id)}
-                      >
-                        <Trash2 className="h-3 w-3 mr-1" /> Delete
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Pagination controls */}
-            <div className="flex items-center justify-between border-t border-border px-4 py-3 text-xs text-muted-foreground">
-              <div>
-                Showing page <span className="font-semibold text-main">{pagination.page}</span>{" "}
-                of <span className="font-semibold text-main">{pagination.totalPages}</span> (
-                {pagination.total} total)
-              </div>
-
-              <div className="flex items-center gap-1.5">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={pagination.page <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="h-8 gap-1 border-border px-2 text-xs"
-                >
-                  <ChevronLeft className="h-3.5 w-3.5" />
-                  Prev
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={pagination.page >= pagination.totalPages}
-                  onClick={() => setPage((p) => p + 1)}
-                  className="h-8 gap-1 border-border px-2 text-xs"
-                >
-                  Next
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            </div>
-          </>
+            <MobileList
+              rows={rows}
+              rowSelection={rowSelection}
+              onToggle={(id) => setRowSelection((s) => ({ ...s, [id]: !s[id] }))}
+              onView={onView}
+              onEdit={onEdit}
+              onDelete={onDelete}
+            />
+          </div>
         )}
-      </div>
 
-      {/* Edit Dialog */}
-      {editingTransaction && editingCurrency && (
+        {rows.length > 0 && (
+          <div className="flex flex-col gap-2 border-t border-border px-4 py-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2">
+              <span className="tabular-nums">
+                {firstRow.toLocaleString()}–{lastRow.toLocaleString()} of {pagination.total.toLocaleString()}
+              </span>
+              <Select value={String(limit)} onValueChange={(v) => update({ limit: Number(v) })}>
+                <SelectTrigger className="h-8 w-[88px] text-xs" aria-label="Rows per page">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAGE_SIZES.map((s) => (
+                    <SelectItem key={s} value={String(s)}>
+                      {s} / page
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 px-2 text-xs"
+                disabled={pagination.page <= 1}
+                onClick={() => update({ page: pagination.page - 1 }, { resetPage: false })}
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+                Prev
+              </Button>
+              <span className="px-1 tabular-nums">
+                Page {pagination.page} of {pagination.totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 px-2 text-xs"
+                disabled={pagination.page >= pagination.totalPages}
+                onClick={() => update({ page: pagination.page + 1 }, { resetPage: false })}
+              >
+                Next
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {editing && editingCurrency && (
         <TransactionDialog
-          open={Boolean(editingTransaction)}
-          onOpenChange={(open) => !open && setEditingTransaction(null)}
+          open
+          onOpenChange={(open) => !open && setEditing(null)}
           categories={categories}
           defaultCurrency={editingCurrency}
-          initialData={editingTransaction}
-          onSuccess={handleRefresh}
+          initialData={editing}
+          onSuccess={() => void refreshAll()}
         />
       )}
 
-      {/* View Details Dialog */}
-      {viewingTransaction && (
-        <Dialog open={Boolean(viewingTransaction)} onOpenChange={() => setViewingTransaction(null)}>
-          <DialogContent className="sm:max-w-[420px]">
-            <DialogHeader>
-              <DialogTitle>Transaction Details</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-3 py-3 text-xs">
-              <div className="flex justify-between border-b border-border pb-2">
-                <span className="text-muted-foreground">Title:</span>
-                <span className="font-semibold text-main">{viewingTransaction.title}</span>
-              </div>
-              <div className="flex justify-between border-b border-border pb-2">
-                <span className="text-muted-foreground">Type:</span>
-                <span className="font-semibold capitalize text-main">{viewingTransaction.type}</span>
-              </div>
-              <div className="flex justify-between border-b border-border pb-2">
-                <span className="text-muted-foreground">Amount:</span>
-                <span
-                  className={`font-semibold ${
-                    viewingTransaction.type === "income" ? "text-income-text" : "text-expense-text"
-                  }`}
-                >
-                  {formatCurrency(viewingTransaction.amount, viewingTransaction.currency)}
-                </span>
-              </div>
-              <div className="flex justify-between border-b border-border pb-2">
-                <span className="text-muted-foreground">Category:</span>
-                <span className="font-semibold text-main">{viewingTransaction.category?.name}</span>
-              </div>
-              <div className="flex justify-between border-b border-border pb-2">
-                <span className="text-muted-foreground">Date:</span>
-                <span className="font-semibold text-main">
-                  {format(new Date(viewingTransaction.date), "dd MMMM yyyy")}
-                </span>
-              </div>
-              <div className="flex justify-between border-b border-border pb-2">
-                <span className="text-muted-foreground">Payment Method:</span>
-                <span className="font-semibold text-main">{viewingTransaction.paymentMethod}</span>
-              </div>
-              {viewingTransaction.notes && (
-                <div className="flex flex-col gap-1 border-b border-border pb-2">
-                  <span className="text-muted-foreground">Notes:</span>
-                  <span className="text-main">{viewingTransaction.notes}</span>
-                </div>
-              )}
-              {viewingTransaction.exchangeRateSnapshot && (
-                <div className="rounded-lg bg-muted p-2.5 text-[11px] text-muted-foreground">
-                  Rate Snapshot: 1 USD = {viewingTransaction.exchangeRateSnapshot.rateToUSD}{" "}
-                  {viewingTransaction.currency} (Captured on{" "}
-                  {format(new Date(viewingTransaction.exchangeRateSnapshot.rateDate), "dd MMM yyyy")})
-                </div>
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+      {viewing && <DetailsDialog tx={viewing} onClose={() => setViewing(null)} />}
 
-      {/* Delete Confirmation */}
       <ConfirmDialog
-        open={Boolean(deleteTargetId)}
-        onOpenChange={(open) => !open && setDeleteTargetId(null)}
-        title="Delete Transaction"
-        description="Are you sure you want to delete this transaction record? This operation cannot be reversed."
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete transaction?"
+        description={
+          deleteTarget
+            ? `“${deleteTarget.title}” (${formatCurrency(deleteTarget.amount, deleteTarget.currency)}) will be permanently removed. This can't be undone.`
+            : ""
+        }
         confirmLabel="Delete"
         isDestructive
-        isLoading={isDeleting}
-        onConfirm={handleDelete}
+        isLoading={busy}
+        onConfirm={() => void deleteOne()}
+      />
+      <ConfirmDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        title={`Delete ${selectedIds.length} transaction${selectedIds.length === 1 ? "" : "s"}?`}
+        description="The selected transactions will be permanently removed and your totals recalculated. This can't be undone."
+        confirmLabel={`Delete ${selectedIds.length}`}
+        isDestructive
+        isLoading={busy}
+        onConfirm={() =>
+          void runBulk({ action: "delete" }, (n) => `Deleted ${n} transaction${n === 1 ? "" : "s"}`)
+        }
       />
     </div>
+  );
+}
+
+/* ---------- Pieces ---------- */
+
+function AmountInput({
+  label,
+  value,
+  onCommit,
+}: {
+  label: string;
+  value?: string;
+  onCommit: (v: string | undefined) => void;
+}) {
+  const [local, setLocal] = useState(value ?? "");
+  useEffect(() => setLocal(value ?? ""), [value]);
+  const commit = () => {
+    const trimmed = local.trim();
+    if (trimmed === (value ?? "")) return;
+    onCommit(trimmed && Number(trimmed) >= 0 ? trimmed : undefined);
+  };
+  return (
+    <Input
+      type="number"
+      inputMode="decimal"
+      min="0"
+      step="any"
+      placeholder={label}
+      aria-label={label}
+      value={local}
+      onChange={(e) => setLocal(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => e.key === "Enter" && commit()}
+      className="h-9 text-xs"
+    />
+  );
+}
+
+const CHIP_LABELS: Record<keyof Filters, string> = {
+  search: "Search",
+  type: "Type",
+  categoryId: "Category",
+  accountId: "Account",
+  startDate: "From",
+  endDate: "To",
+  minAmount: "Min",
+  maxAmount: "Max",
+};
+
+function ActiveFilterChips({
+  filters,
+  categoryName,
+  accountName,
+  onRemove,
+}: {
+  filters: Filters;
+  categoryName: (id: string) => string | undefined;
+  accountName: (id: string) => string | undefined;
+  onRemove: (key: keyof Filters) => void;
+}) {
+  return (
+    <>
+      {(Object.keys(filters) as (keyof Filters)[]).map((key) => {
+        const raw = filters[key]!;
+        const display =
+          key === "categoryId" ? categoryName(raw) ?? "…" : key === "accountId" ? accountName(raw) ?? "…" : raw;
+        return (
+          <span
+            key={key}
+            className="inline-flex items-center gap-1 rounded-full border border-border bg-muted py-0.5 pl-2.5 pr-1 text-xs text-main"
+          >
+            <span className="text-muted-foreground">{CHIP_LABELS[key]}:</span>
+            <span className="max-w-40 truncate font-medium capitalize">{display}</span>
+            <button
+              type="button"
+              onClick={() => onRemove(key)}
+              aria-label={`Remove ${CHIP_LABELS[key]} filter`}
+              className="rounded-full p-0.5 text-muted-foreground hover:bg-border hover:text-main"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </span>
+        );
+      })}
+    </>
+  );
+}
+
+function SavedViewsMenu({
+  views,
+  onApply,
+  onSave,
+  onDelete,
+}: {
+  views: SavedView[];
+  onApply: (v: SavedView) => void;
+  onSave: () => void;
+  onDelete: (id: string) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="sm" className="h-9 justify-start text-xs">
+          <Bookmark className="h-3.5 w-3.5" />
+          Saved views{views.length ? ` (${views.length})` : ""}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-60">
+        {views.length === 0 && (
+          <p className="px-2 py-2 text-xs text-muted-foreground">Save the current filters to reuse them later.</p>
+        )}
+        {views.map((v) => (
+          <DropdownMenuItem key={v.id} onClick={() => onApply(v)} className="cursor-pointer justify-between gap-2">
+            <span className="truncate">{v.name}</span>
+            <button
+              type="button"
+              aria-label={`Delete view ${v.name}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(v.id);
+              }}
+              className="rounded p-0.5 text-muted-foreground hover:bg-expense-light hover:text-expense-text"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={onSave} className="cursor-pointer text-primary-text">
+          <Plus className="mr-1 h-3.5 w-3.5" /> Save current view
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function TableSkeleton() {
+  return (
+    <div aria-label="Loading transactions" className="divide-y divide-border">
+      {Array.from({ length: 8 }, (_, i) => (
+        <div key={i} className="flex items-center gap-4 px-4 py-3.5">
+          <Skeleton className="h-4 w-4" />
+          <div className="flex-1 space-y-1.5">
+            <Skeleton className="h-3 w-1/3" />
+            <Skeleton className="h-2.5 w-1/5" />
+          </div>
+          <Skeleton className="hidden h-5 w-20 rounded-full md:block" />
+          <Skeleton className="hidden h-3 w-20 md:block" />
+          <Skeleton className="h-3 w-16" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MobileList({
+  rows,
+  rowSelection,
+  onToggle,
+  onView,
+  onEdit,
+  onDelete,
+}: {
+  rows: TransactionRow[];
+  rowSelection: RowSelectionState;
+  onToggle: (id: string) => void;
+  onView: (r: TransactionRow) => void;
+  onEdit: (r: TransactionRow) => void;
+  onDelete: (r: TransactionRow) => void;
+}) {
+  return (
+    <ul className="divide-y divide-border md:hidden">
+      {rows.map((t) => {
+        const income = t.type === "income";
+        return (
+          <li key={t.id} className={cn("flex items-start gap-3 px-4 py-3", rowSelection[t.id] && "bg-primary-light/60")}>
+            <input
+              type="checkbox"
+              aria-label={`Select ${t.title}`}
+              checked={Boolean(rowSelection[t.id])}
+              onChange={() => onToggle(t.id)}
+              className="mt-2.5 h-4 w-4 accent-primary"
+            />
+            <button type="button" onClick={() => onView(t)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+              <span
+                className={cn(
+                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
+                  income ? "bg-income-light text-income-text" : "bg-expense-light text-expense-text"
+                )}
+              >
+                {income ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium text-main">{t.title}</span>
+                <span className="block truncate text-xs text-muted-foreground">
+                  {format(new Date(t.date), "dd MMM")} · {t.category.name}
+                  {t.account && ` · ${t.account.name}`}
+                </span>
+              </span>
+              <span className={cn("shrink-0 text-sm font-semibold tabular-nums", income ? "text-income-text" : "text-expense-text")}>
+                {income ? "+" : "−"}
+                {formatCurrency(t.amount, t.currency)}
+              </span>
+            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${t.title}`} className="mt-0.5">
+                  <Edit2 className="h-3.5 w-3.5 text-muted-foreground" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onView(t)} className="gap-2">
+                  <Eye className="h-4 w-4" /> Details
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onEdit(t)} className="gap-2">
+                  <Edit2 className="h-4 w-4" /> Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onDelete(t)} className="gap-2 text-expense-text focus:text-expense-text">
+                  <Trash2 className="h-4 w-4" /> Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function DetailsDialog({ tx, onClose }: { tx: TransactionRow; onClose: () => void }) {
+  const income = tx.type === "income";
+  const rows: [string, React.ReactNode][] = [
+    ["Type", <span key="t" className="capitalize">{tx.type}</span>],
+    ["Category", tx.category.name],
+    ["Account", tx.account?.name ?? "—"],
+    ["Date", format(new Date(tx.date), "dd MMMM yyyy")],
+    ["Payment method", tx.paymentMethod],
+  ];
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-[420px]">
+        <DialogHeader>
+          <DialogTitle className="pr-6">{tx.title}</DialogTitle>
+        </DialogHeader>
+        <p className={cn("text-3xl font-semibold tracking-tight tabular-nums", income ? "text-income-text" : "text-expense-text")}>
+          {income ? "+" : "−"}
+          {formatCurrency(tx.amount, tx.currency)}
+        </p>
+        <dl className="divide-y divide-border text-sm">
+          {rows.map(([label, value]) => (
+            <div key={label} className="flex justify-between gap-4 py-2">
+              <dt className="text-muted-foreground">{label}</dt>
+              <dd className="text-right font-medium text-main">{value}</dd>
+            </div>
+          ))}
+        </dl>
+        {tx.notes && <p className="rounded-lg bg-muted p-3 text-sm text-main">{tx.notes}</p>}
+        {tx.exchangeRateSnapshot && (
+          <p className="text-xs text-muted-foreground">
+            Rate at entry: 1 USD = {tx.exchangeRateSnapshot.rateToUSD} {tx.currency} (
+            {format(new Date(tx.exchangeRateSnapshot.rateDate), "dd MMM yyyy")})
+          </p>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
