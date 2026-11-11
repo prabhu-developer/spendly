@@ -110,8 +110,8 @@ export default function DashboardOverviewPage() {
   } = useQuery({
     queryKey: ["reports"],
     staleTime: 0,
-    queryFn: async () => {
-      const res = await apiClient.get("/reports");
+    queryFn: async ({ signal }) => {
+      const res = await apiClient.get("/reports?includeBalance=true", { signal });
       return res.data;
     },
   });
@@ -125,8 +125,10 @@ export default function DashboardOverviewPage() {
   } = useQuery({
     queryKey: ["recentTransactions"],
     staleTime: 0,
-    queryFn: async () => {
-      const res = await apiClient.get("/transactions?limit=5&includeTotal=false&compact=true");
+    queryFn: async ({ signal }) => {
+      const res = await apiClient.get("/transactions?limit=5&includeTotal=false&compact=true", {
+        signal,
+      });
       return res.data;
     },
   });
@@ -146,7 +148,8 @@ export default function DashboardOverviewPage() {
     savingsChange: 0,
   };
 
-  const totalBalance = summary.totalSavings;
+  // All-time net (income − expenses). Falls back to period net if the API omits it.
+  const totalBalance: number = summary.totalBalance ?? summary.totalSavings;
   const recentTransactions = txData?.transactions || [];
   const categories = categoriesData || [];
 
@@ -244,7 +247,6 @@ export default function DashboardOverviewPage() {
               title="Total Balance"
               amount={totalBalance}
               currency={preferredCurrency}
-              changePercent={summary.savingsChange}
               icon={<Wallet className="h-5 w-5 text-[#2878E5]" />}
               iconBgColor="bg-[#EBF3FC]"
               type="default"

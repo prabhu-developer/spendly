@@ -9,6 +9,7 @@ import { withServerTiming } from "@/lib/api/performance";
 import { ExchangeRateService } from "@/lib/currency/exchangeRateService";
 import { isValidCurrency } from "@/lib/currency/currencies";
 import mongoose from "mongoose";
+import { escapeRegex } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -40,13 +41,19 @@ export async function GET(req: NextRequest) {
     const query: any = { userId: userObjectId };
 
     if (search) {
-      query.title = { $regex: search, $options: "i" };
+      query.title = { $regex: escapeRegex(search.slice(0, 100)), $options: "i" };
     }
     if (type && (type === "income" || type === "expense")) {
       query.type = type;
     }
     if (categoryId && mongoose.Types.ObjectId.isValid(categoryId)) {
       query.categoryId = new mongoose.Types.ObjectId(categoryId);
+    }
+    if (
+      (startDate && Number.isNaN(new Date(startDate).getTime())) ||
+      (endDate && Number.isNaN(new Date(endDate).getTime()))
+    ) {
+      return NextResponse.json({ success: false, error: "Invalid date filter" }, { status: 400 });
     }
     if (startDate || endDate) {
       query.date = {};

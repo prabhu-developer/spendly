@@ -97,7 +97,8 @@ const TransactionSchema = new Schema<ITransaction>(
 // Compound indexes for performant multi-tenant queries
 TransactionSchema.index({ userId: 1, date: -1 });
 TransactionSchema.index({ userId: 1, type: 1, date: -1 });
-TransactionSchema.index({ userId: 1, categoryId: 1 });
+// Category-filtered lists sorted by date, and budget spend lookups
+TransactionSchema.index({ userId: 1, categoryId: 1, date: -1 });
 
 export const Transaction: Model<ITransaction> =
   mongoose.models.Transaction || mongoose.model<ITransaction>("Transaction", TransactionSchema);

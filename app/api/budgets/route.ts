@@ -8,6 +8,7 @@ import { budgetSchema } from "@/lib/validations/budget";
 import { ExchangeRateService } from "@/lib/currency/exchangeRateService";
 import { roundToTwoDecimals } from "@/lib/utils";
 import mongoose from "mongoose";
+import type { SupportedCurrency } from "@/lib/currency/currencies";
 
 export const dynamic = "force-dynamic";
 
@@ -26,34 +27,53 @@ export async function GET(req: NextRequest) {
     const month = parseInt(searchParams.get("month") || `${currentDate.getMonth() + 1}`, 10);
     const year = parseInt(searchParams.get("year") || `${currentDate.getFullYear()}`, 10);
 
-    // Fetch user budgets for specified month & year
-    const budgets = await Budget.find({
-      userId: userObjectId,
-      month,
-      year,
-    }).populate("categoryId", "name icon color type");
+    if (!Number.isInteger(month) || month < 1 || month > 12 || !Number.isInteger(year)) {
+      return NextResponse.json({ success: false, error: "Invalid month or year" }, { status: 400 });
+    }
 
-    // Fetch all expenses for this user in this month and year
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0, 23, 59, 59, 999);
-
-    const expenses = await Transaction.find({
-      userId: userObjectId,
-      type: "expense",
-      date: { $gte: startDate, $lte: endDate },
-    }).lean();
-
-    // Get exchange rates for converting currencies to user's preferred reporting currency
     const preferredCurrency = session.preferredCurrency || "USD";
-    const ratesData = await ExchangeRateService.getExchangeRates();
 
-    // Calculate spent per category
+    const [budgets, ratesData] = await Promise.all([
+      Budget.find({ userId: userObjectId, month, year })
+        .populate("categoryId", "name icon color type")
+        .lean(),
+      ExchangeRateService.getExchangeRates(),
+    ]);
+
+    // Sum spend per budgeted category (per currency) in MongoDB instead of loading every expense.
+    const budgetCategoryIds = budgets
+      .map((b: any) => b.categoryId?._id ?? b.categoryId)
+      .filter(Boolean);
+    const spentRows = budgetCategoryIds.length
+      ? await Transaction.aggregate<{
+          _id: { categoryId: mongoose.Types.ObjectId; currency: SupportedCurrency };
+          amount: number;
+        }>([
+          {
+            $match: {
+              userId: userObjectId,
+              type: "expense",
+              categoryId: { $in: budgetCategoryIds },
+              date: { $gte: startDate, $lte: endDate },
+            },
+          },
+          {
+            $group: {
+              _id: { categoryId: "$categoryId", currency: "$currency" },
+              amount: { $sum: "$amount" },
+            },
+          },
+        ])
+      : [];
+
     const categorySpentMap = new Map<string, number>();
-    for (const exp of expenses) {
-      const catId = exp.categoryId.toString();
+    for (const row of spentRows) {
+      const catId = row._id.categoryId.toString();
       const convertedAmount = ExchangeRateService.convertWithSnapshot(
-        exp.amount,
-        exp.currency,
+        row.amount,
+        row._id.currency,
         preferredCurrency,
         ratesData.rates
       );

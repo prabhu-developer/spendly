@@ -121,6 +121,9 @@ export async function PUT(
       return NextResponse.json({ success: false, error: "Selected category does not exist" }, { status: 400 });
     }
 
+    // Capture before overwriting, so the snapshot refresh check below is meaningful
+    const currencyChanged = existingTransaction.currency !== currency;
+
     // Update fields
     existingTransaction.title = title;
     existingTransaction.amount = amount;
@@ -132,7 +135,7 @@ export async function PUT(
     existingTransaction.notes = notes || "";
 
     // If currency changed or no snapshot existed, update snapshot
-    if (existingTransaction.currency !== currency || !existingTransaction.exchangeRateSnapshot) {
+    if (currencyChanged || !existingTransaction.exchangeRateSnapshot) {
       const ratesData = await ExchangeRateService.getExchangeRates();
       const rateToUSD = ratesData.rates[currency] || 1;
       existingTransaction.exchangeRateSnapshot = {

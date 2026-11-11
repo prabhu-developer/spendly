@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { apiClient } from "@/lib/api/client";
 import { formatCurrency, isValidCurrency } from "@/lib/currency/currencies";
 import { Button } from "@/components/ui/button";
@@ -85,16 +86,21 @@ export default function TransactionsPage() {
     },
   });
 
-  // Fetch transactions with query params
-  const { data: transactionsData, isLoading, refetch } = useQuery({
+  // Debounce search so typing doesn't fire a request per keystroke
+  const debouncedSearch = useDebouncedValue(search.trim(), 300);
+
+  // Fetch transactions with query params (server-side filtering, sorting, pagination)
+  const { data: transactionsData, isLoading, isFetching, isError, refetch } = useQuery({
     queryKey: [
       "transactions",
-      { search, typeFilter, categoryFilter, startDate, endDate, sortBy, sortOrder, page },
+      { search: debouncedSearch, typeFilter, categoryFilter, startDate, endDate, sortBy, sortOrder, page },
     ],
     staleTime: 0,
-    queryFn: async () => {
+    // Keep the current page visible while the next one loads (no flash of empty table)
+    placeholderData: keepPreviousData,
+    queryFn: async ({ signal }) => {
       const params = new URLSearchParams();
-      if (search) params.set("search", search);
+      if (debouncedSearch) params.set("search", debouncedSearch);
       if (typeFilter !== "all") params.set("type", typeFilter);
       if (categoryFilter !== "all") params.set("categoryId", categoryFilter);
       if (startDate) params.set("startDate", startDate);
@@ -104,7 +110,8 @@ export default function TransactionsPage() {
       params.set("page", page.toString());
       params.set("limit", limit.toString());
 
-      const res = await apiClient.get(`/transactions?${params.toString()}`);
+      // `signal` cancels superseded requests when filters change
+      const res = await apiClient.get(`/transactions?${params.toString()}`, { signal });
       return res.data;
     },
   });
@@ -296,9 +303,32 @@ export default function TransactionsPage() {
       </div>
 
       {/* Transaction List / Table */}
-      <div className="rounded-xl border border-[#E8EDF4] bg-white shadow-sm overflow-hidden">
+      <div
+        className={`rounded-xl border border-[#E8EDF4] bg-white shadow-sm overflow-hidden transition-opacity ${
+          isFetching && !isLoading ? "opacity-70" : ""
+        }`}
+        aria-busy={isFetching}
+      >
         {isLoading ? (
-          <div className="py-16 text-center text-xs text-[#8992A3]">Loading transactions...</div>
+          <div className="divide-y divide-[#E8EDF4]" aria-label="Loading transactions">
+            {Array.from({ length: 6 }, (_, i) => (
+              <div key={i} className="flex items-center gap-3 px-4 py-3">
+                <div className="h-8 w-8 animate-pulse rounded-lg bg-[#F3F6FC]" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="h-3 w-1/3 animate-pulse rounded bg-[#F3F6FC]" />
+                  <div className="h-2.5 w-1/5 animate-pulse rounded bg-[#F3F6FC]" />
+                </div>
+                <div className="h-3 w-16 animate-pulse rounded bg-[#F3F6FC]" />
+              </div>
+            ))}
+          </div>
+        ) : isError && !transactionsData ? (
+          <div role="alert" className="flex flex-col items-center gap-3 py-12 text-xs text-[#8992A3]">
+            Transactions could not be loaded.
+            <Button variant="outline" size="sm" onClick={() => void refetch()} className="border-[#E8EDF4]">
+              Try again
+            </Button>
+          </div>
         ) : transactions.length === 0 ? (
           <EmptyState
             title="No transactions found"

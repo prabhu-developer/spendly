@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import dynamic from "next/dynamic";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -55,11 +55,12 @@ export default function ReportsPage() {
 
   const { data: reportsData, isLoading, refetch } = useQuery({
     queryKey: ["reportsDetail", { startDate, endDate }],
-    queryFn: async () => {
+    placeholderData: keepPreviousData,
+    queryFn: async ({ signal }) => {
       const params = new URLSearchParams();
       if (startDate) params.set("startDate", startDate);
       if (endDate) params.set("endDate", endDate);
-      const res = await apiClient.get(`/reports?${params.toString()}`);
+      const res = await apiClient.get(`/reports?${params.toString()}`, { signal });
       return res.data;
     },
   });

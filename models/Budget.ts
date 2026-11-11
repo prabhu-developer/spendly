@@ -55,6 +55,8 @@ const BudgetSchema = new Schema<IBudget>(
 
 // One budget per category per month per user
 BudgetSchema.index({ userId: 1, categoryId: 1, month: 1, year: 1 }, { unique: true });
+// Monthly budget listing: { userId, month, year }
+BudgetSchema.index({ userId: 1, year: 1, month: 1 });
 
 export const Budget: Model<IBudget> =
   mongoose.models.Budget || mongoose.model<IBudget>("Budget", BudgetSchema);
