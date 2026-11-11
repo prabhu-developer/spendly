@@ -152,15 +152,15 @@ export default function TransactionsPage() {
       {/* Header and Add Button */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-[#202735]">Transactions</h2>
-          <p className="text-xs text-[#8992A3]">
+          <h2 className="text-xl font-bold tracking-tight text-main">Transactions</h2>
+          <p className="text-xs text-muted-foreground">
             Manage, filter, and track all your income and expenses.
           </p>
         </div>
 
         <Button
           onClick={() => router.push("/dashboard/transactions/new")}
-          className="gap-1.5 bg-[#2878E5] hover:bg-[#1F65C2]"
+          className="gap-1.5 bg-primary hover:bg-primary-hover"
         >
           <Plus className="h-4 w-4" />
           Add Transaction
@@ -168,11 +168,11 @@ export default function TransactionsPage() {
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="rounded-xl border border-[#E8EDF4] bg-white p-4 shadow-sm space-y-3">
+      <div className="rounded-xl border border-border bg-white p-4 shadow-sm space-y-3">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
           {/* Search */}
           <div className="relative">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-[#8992A3]" />
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search transactions..."
               value={search}
@@ -249,7 +249,7 @@ export default function TransactionsPage() {
         </div>
 
         {/* Sorting options */}
-        <div className="flex flex-wrap items-center justify-between border-t border-[#E8EDF4] pt-3 text-xs text-[#8992A3]">
+        <div className="flex flex-wrap items-center justify-between border-t border-border pt-3 text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
             <span>Sort by:</span>
             <button
@@ -262,7 +262,7 @@ export default function TransactionsPage() {
                 }
               }}
               className={`flex items-center gap-1 rounded px-2 py-1 font-medium transition-colors ${
-                sortBy === "date" ? "bg-[#F3F6FC] text-[#2878E5]" : "hover:text-[#202735]"
+                sortBy === "date" ? "bg-muted text-primary-text" : "hover:text-main"
               }`}
             >
               Date {sortBy === "date" && (sortOrder === "desc" ? "↓" : "↑")}
@@ -277,7 +277,7 @@ export default function TransactionsPage() {
                 }
               }}
               className={`flex items-center gap-1 rounded px-2 py-1 font-medium transition-colors ${
-                sortBy === "amount" ? "bg-[#F3F6FC] text-[#2878E5]" : "hover:text-[#202735]"
+                sortBy === "amount" ? "bg-muted text-primary-text" : "hover:text-main"
               }`}
             >
               Amount {sortBy === "amount" && (sortOrder === "desc" ? "↓" : "↑")}
@@ -294,7 +294,7 @@ export default function TransactionsPage() {
                 setEndDate("");
                 setPage(1);
               }}
-              className="text-[#F07862] hover:underline"
+              className="text-expense-text hover:underline"
             >
               Clear filters
             </button>
@@ -304,28 +304,28 @@ export default function TransactionsPage() {
 
       {/* Transaction List / Table */}
       <div
-        className={`rounded-xl border border-[#E8EDF4] bg-white shadow-sm overflow-hidden transition-opacity ${
+        className={`rounded-xl border border-border bg-white shadow-sm overflow-hidden transition-opacity ${
           isFetching && !isLoading ? "opacity-70" : ""
         }`}
         aria-busy={isFetching}
       >
         {isLoading ? (
-          <div className="divide-y divide-[#E8EDF4]" aria-label="Loading transactions">
+          <div className="divide-y divide-border" aria-label="Loading transactions">
             {Array.from({ length: 6 }, (_, i) => (
               <div key={i} className="flex items-center gap-3 px-4 py-3">
-                <div className="h-8 w-8 animate-pulse rounded-lg bg-[#F3F6FC]" />
+                <div className="h-8 w-8 animate-pulse rounded-lg bg-muted" />
                 <div className="flex-1 space-y-1.5">
-                  <div className="h-3 w-1/3 animate-pulse rounded bg-[#F3F6FC]" />
-                  <div className="h-2.5 w-1/5 animate-pulse rounded bg-[#F3F6FC]" />
+                  <div className="h-3 w-1/3 animate-pulse rounded bg-muted" />
+                  <div className="h-2.5 w-1/5 animate-pulse rounded bg-muted" />
                 </div>
-                <div className="h-3 w-16 animate-pulse rounded bg-[#F3F6FC]" />
+                <div className="h-3 w-16 animate-pulse rounded bg-muted" />
               </div>
             ))}
           </div>
         ) : isError && !transactionsData ? (
-          <div role="alert" className="flex flex-col items-center gap-3 py-12 text-xs text-[#8992A3]">
+          <div role="alert" className="flex flex-col items-center gap-3 py-12 text-xs text-muted-foreground">
             Transactions could not be loaded.
-            <Button variant="outline" size="sm" onClick={() => void refetch()} className="border-[#E8EDF4]">
+            <Button variant="outline" size="sm" onClick={() => void refetch()} className="border-border">
               Try again
             </Button>
           </div>
@@ -342,7 +342,7 @@ export default function TransactionsPage() {
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="border-b border-[#E8EDF4] bg-[#F3F6FC]/60 text-[#8992A3]">
+                  <tr className="border-b border-border bg-muted/60 text-muted-foreground">
                     <th className="py-3 px-4 font-medium">Transaction</th>
                     <th className="py-3 px-4 font-medium">Category</th>
                     <th className="py-3 px-4 font-medium">Date</th>
@@ -351,16 +351,16 @@ export default function TransactionsPage() {
                     <th className="py-3 px-4 text-right font-medium">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#E8EDF4]">
+                <tbody className="divide-y divide-border">
                   {transactions.map((t: any) => {
                     const isIncome = t.type === "income";
                     return (
-                      <tr key={t.id} className="transition-colors hover:bg-[#F3F6FC]/50">
+                      <tr key={t.id} className="transition-colors hover:bg-muted/50">
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-3">
                             <div
                               className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-                                isIncome ? "bg-[#EAF6F1] text-[#269B72]" : "bg-[#FDF1EE] text-[#F07862]"
+                                isIncome ? "bg-income-light text-income-text" : "bg-expense-light text-expense-text"
                               }`}
                             >
                               {isIncome ? (
@@ -370,9 +370,9 @@ export default function TransactionsPage() {
                               )}
                             </div>
                             <div>
-                              <p className="font-semibold text-[#202735]">{t.title}</p>
+                              <p className="font-semibold text-main">{t.title}</p>
                               {t.notes && (
-                                <p className="text-[11px] text-[#8992A3] truncate max-w-xs">{t.notes}</p>
+                                <p className="text-[11px] text-muted-foreground truncate max-w-xs">{t.notes}</p>
                               )}
                             </div>
                           </div>
@@ -392,16 +392,16 @@ export default function TransactionsPage() {
                           </Badge>
                         </td>
 
-                        <td className="py-3 px-4 text-[#8992A3]">
+                        <td className="py-3 px-4 text-muted-foreground">
                           {format(new Date(t.date), "dd MMM yyyy")}
                         </td>
 
-                        <td className="py-3 px-4 text-[#8992A3]">{t.paymentMethod}</td>
+                        <td className="py-3 px-4 text-muted-foreground">{t.paymentMethod}</td>
 
                         <td className="py-3 px-4 text-right">
                           <span
                             className={`font-semibold ${
-                              isIncome ? "text-[#269B72]" : "text-[#F07862]"
+                              isIncome ? "text-income-text" : "text-expense-text"
                             }`}
                           >
                             {isIncome ? "+" : "-"}
@@ -414,7 +414,7 @@ export default function TransactionsPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-7 w-7 text-[#8992A3] hover:text-[#2878E5]"
+                              className="h-7 w-7 text-muted-foreground hover:text-primary-text"
                               onClick={() => setViewingTransaction(t)}
                               title="Details"
                             >
@@ -423,7 +423,7 @@ export default function TransactionsPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-7 w-7 text-[#8992A3] hover:text-[#2878E5]"
+                              className="h-7 w-7 text-muted-foreground hover:text-primary-text"
                               onClick={() => setEditingTransaction(t)}
                               title="Edit"
                             >
@@ -432,7 +432,7 @@ export default function TransactionsPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-7 w-7 text-[#8992A3] hover:text-[#F07862]"
+                              className="h-7 w-7 text-muted-foreground hover:text-expense-text"
                               onClick={() => setDeleteTargetId(t.id)}
                               title="Delete"
                             >
@@ -448,7 +448,7 @@ export default function TransactionsPage() {
             </div>
 
             {/* Mobile Cards List */}
-            <div className="divide-y divide-[#E8EDF4] p-4 md:hidden">
+            <div className="divide-y divide-border p-4 md:hidden">
               {transactions.map((t: any) => {
                 const isIncome = t.type === "income";
                 return (
@@ -457,7 +457,7 @@ export default function TransactionsPage() {
                       <div className="flex items-center gap-2.5">
                         <div
                           className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-                            isIncome ? "bg-[#EAF6F1] text-[#269B72]" : "bg-[#FDF1EE] text-[#F07862]"
+                            isIncome ? "bg-income-light text-income-text" : "bg-expense-light text-expense-text"
                           }`}
                         >
                           {isIncome ? (
@@ -467,8 +467,8 @@ export default function TransactionsPage() {
                           )}
                         </div>
                         <div>
-                          <p className="text-xs font-semibold text-[#202735]">{t.title}</p>
-                          <p className="text-[11px] text-[#8992A3]">
+                          <p className="text-xs font-semibold text-main">{t.title}</p>
+                          <p className="text-[11px] text-muted-foreground">
                             {format(new Date(t.date), "dd MMM yyyy")} &bull; {t.category?.name}
                           </p>
                         </div>
@@ -476,7 +476,7 @@ export default function TransactionsPage() {
 
                       <span
                         className={`text-xs font-semibold ${
-                          isIncome ? "text-[#269B72]" : "text-[#F07862]"
+                          isIncome ? "text-income-text" : "text-expense-text"
                         }`}
                       >
                         {isIncome ? "+" : "-"}
@@ -488,7 +488,7 @@ export default function TransactionsPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 text-xs text-[#8992A3]"
+                        className="h-7 text-xs text-muted-foreground"
                         onClick={() => setViewingTransaction(t)}
                       >
                         <Eye className="h-3 w-3 mr-1" /> View
@@ -496,7 +496,7 @@ export default function TransactionsPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 text-xs text-[#8992A3]"
+                        className="h-7 text-xs text-muted-foreground"
                         onClick={() => setEditingTransaction(t)}
                       >
                         <Edit2 className="h-3 w-3 mr-1" /> Edit
@@ -504,7 +504,7 @@ export default function TransactionsPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 text-xs text-[#F07862]"
+                        className="h-7 text-xs text-expense-text"
                         onClick={() => setDeleteTargetId(t.id)}
                       >
                         <Trash2 className="h-3 w-3 mr-1" /> Delete
@@ -516,10 +516,10 @@ export default function TransactionsPage() {
             </div>
 
             {/* Pagination controls */}
-            <div className="flex items-center justify-between border-t border-[#E8EDF4] px-4 py-3 text-xs text-[#8992A3]">
+            <div className="flex items-center justify-between border-t border-border px-4 py-3 text-xs text-muted-foreground">
               <div>
-                Showing page <span className="font-semibold text-[#202735]">{pagination.page}</span>{" "}
-                of <span className="font-semibold text-[#202735]">{pagination.totalPages}</span> (
+                Showing page <span className="font-semibold text-main">{pagination.page}</span>{" "}
+                of <span className="font-semibold text-main">{pagination.totalPages}</span> (
                 {pagination.total} total)
               </div>
 
@@ -529,7 +529,7 @@ export default function TransactionsPage() {
                   size="sm"
                   disabled={pagination.page <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="h-8 gap-1 border-[#E8EDF4] px-2 text-xs"
+                  className="h-8 gap-1 border-border px-2 text-xs"
                 >
                   <ChevronLeft className="h-3.5 w-3.5" />
                   Prev
@@ -539,7 +539,7 @@ export default function TransactionsPage() {
                   size="sm"
                   disabled={pagination.page >= pagination.totalPages}
                   onClick={() => setPage((p) => p + 1)}
-                  className="h-8 gap-1 border-[#E8EDF4] px-2 text-xs"
+                  className="h-8 gap-1 border-border px-2 text-xs"
                 >
                   Next
                   <ChevronRight className="h-3.5 w-3.5" />
@@ -570,46 +570,46 @@ export default function TransactionsPage() {
               <DialogTitle>Transaction Details</DialogTitle>
             </DialogHeader>
             <div className="space-y-3 py-3 text-xs">
-              <div className="flex justify-between border-b border-[#E8EDF4] pb-2">
-                <span className="text-[#8992A3]">Title:</span>
-                <span className="font-semibold text-[#202735]">{viewingTransaction.title}</span>
+              <div className="flex justify-between border-b border-border pb-2">
+                <span className="text-muted-foreground">Title:</span>
+                <span className="font-semibold text-main">{viewingTransaction.title}</span>
               </div>
-              <div className="flex justify-between border-b border-[#E8EDF4] pb-2">
-                <span className="text-[#8992A3]">Type:</span>
-                <span className="font-semibold capitalize text-[#202735]">{viewingTransaction.type}</span>
+              <div className="flex justify-between border-b border-border pb-2">
+                <span className="text-muted-foreground">Type:</span>
+                <span className="font-semibold capitalize text-main">{viewingTransaction.type}</span>
               </div>
-              <div className="flex justify-between border-b border-[#E8EDF4] pb-2">
-                <span className="text-[#8992A3]">Amount:</span>
+              <div className="flex justify-between border-b border-border pb-2">
+                <span className="text-muted-foreground">Amount:</span>
                 <span
                   className={`font-semibold ${
-                    viewingTransaction.type === "income" ? "text-[#269B72]" : "text-[#F07862]"
+                    viewingTransaction.type === "income" ? "text-income-text" : "text-expense-text"
                   }`}
                 >
                   {formatCurrency(viewingTransaction.amount, viewingTransaction.currency)}
                 </span>
               </div>
-              <div className="flex justify-between border-b border-[#E8EDF4] pb-2">
-                <span className="text-[#8992A3]">Category:</span>
-                <span className="font-semibold text-[#202735]">{viewingTransaction.category?.name}</span>
+              <div className="flex justify-between border-b border-border pb-2">
+                <span className="text-muted-foreground">Category:</span>
+                <span className="font-semibold text-main">{viewingTransaction.category?.name}</span>
               </div>
-              <div className="flex justify-between border-b border-[#E8EDF4] pb-2">
-                <span className="text-[#8992A3]">Date:</span>
-                <span className="font-semibold text-[#202735]">
+              <div className="flex justify-between border-b border-border pb-2">
+                <span className="text-muted-foreground">Date:</span>
+                <span className="font-semibold text-main">
                   {format(new Date(viewingTransaction.date), "dd MMMM yyyy")}
                 </span>
               </div>
-              <div className="flex justify-between border-b border-[#E8EDF4] pb-2">
-                <span className="text-[#8992A3]">Payment Method:</span>
-                <span className="font-semibold text-[#202735]">{viewingTransaction.paymentMethod}</span>
+              <div className="flex justify-between border-b border-border pb-2">
+                <span className="text-muted-foreground">Payment Method:</span>
+                <span className="font-semibold text-main">{viewingTransaction.paymentMethod}</span>
               </div>
               {viewingTransaction.notes && (
-                <div className="flex flex-col gap-1 border-b border-[#E8EDF4] pb-2">
-                  <span className="text-[#8992A3]">Notes:</span>
-                  <span className="text-[#202735]">{viewingTransaction.notes}</span>
+                <div className="flex flex-col gap-1 border-b border-border pb-2">
+                  <span className="text-muted-foreground">Notes:</span>
+                  <span className="text-main">{viewingTransaction.notes}</span>
                 </div>
               )}
               {viewingTransaction.exchangeRateSnapshot && (
-                <div className="rounded-lg bg-[#F3F6FC] p-2.5 text-[11px] text-[#8992A3]">
+                <div className="rounded-lg bg-muted p-2.5 text-[11px] text-muted-foreground">
                   Rate Snapshot: 1 USD = {viewingTransaction.exchangeRateSnapshot.rateToUSD}{" "}
                   {viewingTransaction.currency} (Captured on{" "}
                   {format(new Date(viewingTransaction.exchangeRateSnapshot.rateDate), "dd MMM yyyy")})

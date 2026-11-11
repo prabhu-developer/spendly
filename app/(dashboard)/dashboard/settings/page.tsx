@@ -120,18 +120,18 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6 max-w-4xl">
       <div>
-        <h2 className="text-xl font-bold tracking-tight text-[#202735]">Account Settings</h2>
-        <p className="text-xs text-[#8992A3]">
+        <h2 className="text-xl font-bold tracking-tight text-main">Account Settings</h2>
+        <p className="text-xs text-muted-foreground">
           Manage your personal details, display currency, date formatting, and security settings.
         </p>
       </div>
 
       <div className="grid grid-cols-1 gap-6">
         {/* Profile & Currency Form */}
-        <Card className="border border-[#E8EDF4]">
+        <Card className="border border-border">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <User className="h-4 w-4 text-[#2878E5]" />
+              <User className="h-4 w-4 text-primary-text" />
               <CardTitle className="text-base font-semibold">Profile & Preferences</CardTitle>
             </div>
             <CardDescription className="text-xs">
@@ -141,13 +141,13 @@ export default function SettingsPage() {
           <CardContent>
             <form onSubmit={handleProfileSubmit} className="space-y-4">
               {profileSuccess && (
-                <div className="flex items-center gap-2 rounded-lg bg-[#EAF6F1] p-3 text-xs text-[#269B72]">
+                <div className="flex items-center gap-2 rounded-lg bg-income-light p-3 text-xs text-income-text">
                   <Check className="h-4 w-4" />
                   {profileSuccess}
                 </div>
               )}
               {profileError && (
-                <div className="rounded-lg bg-[#FDF1EE] p-3 text-xs text-[#F07862]">
+                <div className="rounded-lg bg-expense-light p-3 text-xs text-expense-text">
                   {profileError}
                 </div>
               )}
@@ -165,8 +165,8 @@ export default function SettingsPage() {
 
                 <div className="space-y-1.5">
                   <Label htmlFor="email">Email Address</Label>
-                  <Input id="email" value={email} disabled className="bg-[#F3F6FC] cursor-not-allowed" />
-                  <span className="text-[10px] text-[#8992A3]">Email cannot be changed</span>
+                  <Input id="email" value={email} disabled className="bg-muted cursor-not-allowed" />
+                  <span className="text-[10px] text-muted-foreground">Email cannot be changed</span>
                 </div>
               </div>
 
@@ -209,7 +209,7 @@ export default function SettingsPage() {
                 <Button
                   type="submit"
                   disabled={isUpdatingProfile}
-                  className="bg-[#2878E5] hover:bg-[#1F65C2]"
+                  className="bg-primary hover:bg-primary-hover"
                 >
                   {isUpdatingProfile ? "Saving..." : "Save Preferences"}
                 </Button>
@@ -219,10 +219,10 @@ export default function SettingsPage() {
         </Card>
 
         {/* Change Password Card */}
-        <Card className="border border-[#E8EDF4]">
+        <Card className="border border-border">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <KeyRound className="h-4 w-4 text-[#2878E5]" />
+              <KeyRound className="h-4 w-4 text-primary-text" />
               <CardTitle className="text-base font-semibold">Security & Password</CardTitle>
             </div>
             <CardDescription className="text-xs">
@@ -232,13 +232,13 @@ export default function SettingsPage() {
           <CardContent>
             <form onSubmit={handlePasswordSubmit} className="space-y-4">
               {passwordSuccess && (
-                <div className="flex items-center gap-2 rounded-lg bg-[#EAF6F1] p-3 text-xs text-[#269B72]">
+                <div className="flex items-center gap-2 rounded-lg bg-income-light p-3 text-xs text-income-text">
                   <Check className="h-4 w-4" />
                   {passwordSuccess}
                 </div>
               )}
               {passwordError && (
-                <div className="rounded-lg bg-[#FDF1EE] p-3 text-xs text-[#F07862]">
+                <div className="rounded-lg bg-expense-light p-3 text-xs text-expense-text">
                   {passwordError}
                 </div>
               )}
@@ -282,7 +282,7 @@ export default function SettingsPage() {
                 <Button
                   type="submit"
                   disabled={isUpdatingPassword}
-                  className="bg-[#2878E5] hover:bg-[#1F65C2]"
+                  className="bg-primary hover:bg-primary-hover"
                 >
                   {isUpdatingPassword ? "Updating..." : "Update Password"}
                 </Button>
@@ -292,21 +292,21 @@ export default function SettingsPage() {
         </Card>
 
         {/* Account Session Logout */}
-        <Card className="border border-[#E8EDF4]">
+        <Card className="border border-border">
           <CardHeader>
-            <CardTitle className="text-base font-semibold text-[#202735]">Account Session</CardTitle>
+            <CardTitle className="text-base font-semibold text-main">Account Session</CardTitle>
             <CardDescription className="text-xs">
               Securely terminate your current session on this device.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex justify-between items-center">
-            <span className="text-xs text-[#8992A3]">
+            <span className="text-xs text-muted-foreground">
               You will need to enter your email and password to log in again.
             </span>
             <Button
               variant="outline"
               onClick={handleLogout}
-              className="gap-2 border-[#E8EDF4] text-[#F07862] hover:bg-[#FDF1EE] hover:text-[#F07862]"
+              className="gap-2 border-border text-expense-text hover:bg-expense-light hover:text-expense-text"
             >
               <LogOut className="h-4 w-4" />
               Sign Out

@@ -6,6 +6,10 @@ import { Category } from "@/models/Category";
 import { transactionSchema } from "@/lib/validations/transaction";
 import { ExchangeRateService } from "@/lib/currency/exchangeRateService";
 import mongoose from "mongoose";
+import { Account } from "@/models/Account";
+import { serializeTransaction } from "@/lib/transactions/filters";
+import { recordAudit } from "@/lib/audit";
+import { logError } from "@/lib/observability/logger";
 
 export async function GET(
   req: NextRequest,
@@ -26,38 +30,23 @@ export async function GET(
     const transaction = await Transaction.findOne({
       _id: id,
       userId: new mongoose.Types.ObjectId(session.userId),
-    }).populate("categoryId", "name icon color type");
+    })
+      .populate("categoryId", "name icon color type")
+      .populate("accountId", "name color")
+      .lean();
 
     if (!transaction) {
       return NextResponse.json({ success: false, error: "Transaction not found" }, { status: 404 });
     }
 
+    const serialized = serializeTransaction(transaction);
     return NextResponse.json({
       success: true,
-      transaction: {
-        id: transaction._id.toString(),
-        title: transaction.title,
-        amount: transaction.amount,
-        currency: transaction.currency,
-        type: transaction.type,
-        category: transaction.categoryId
-          ? {
-              id: (transaction.categoryId as any)._id.toString(),
-              name: (transaction.categoryId as any).name,
-              icon: (transaction.categoryId as any).icon,
-              color: (transaction.categoryId as any).color,
-              type: (transaction.categoryId as any).type,
-            }
-          : null,
-        date: transaction.date.toISOString(),
-        paymentMethod: transaction.paymentMethod,
-        notes: transaction.notes,
-        exchangeRateSnapshot: transaction.exchangeRateSnapshot,
-        createdAt: transaction.createdAt.toISOString(),
-      },
+      // Legacy shape: category is null when missing on the detail endpoint
+      transaction: { ...serialized, category: transaction.categoryId ? serialized.category : null },
     });
-  } catch (error: any) {
-    console.error("Get transaction by id error:", error);
+  } catch (error) {
+    logError("transactions.get_failed", error);
     return NextResponse.json(
       { success: false, error: "Failed to fetch transaction details" },
       { status: 500 }
@@ -89,7 +78,11 @@ export async function PUT(
       );
     }
 
-    const { title, amount, currency, type, categoryId, date, paymentMethod, notes } = validation.data;
+    const { title, amount, currency, type, categoryId, date, paymentMethod, notes, accountId } =
+      validation.data;
+    if (accountId && !mongoose.Types.ObjectId.isValid(accountId)) {
+      return NextResponse.json({ success: false, error: "Invalid account ID" }, { status: 400 });
+    }
 
     await connectToDatabase();
     const userObjectId = new mongoose.Types.ObjectId(session.userId);
@@ -121,6 +114,20 @@ export async function PUT(
       return NextResponse.json({ success: false, error: "Selected category does not exist" }, { status: 400 });
     }
 
+    // accountId: undefined → leave unchanged, null/"" → unassign, id → must be the user's account
+    let account: { _id: mongoose.Types.ObjectId; name: string; color: string } | null = null;
+    if (accountId) {
+      account = await Account.findOne({ _id: accountId, userId: userObjectId })
+        .select("name color")
+        .lean();
+      if (!account) {
+        return NextResponse.json(
+          { success: false, error: "Selected account does not exist" },
+          { status: 400 }
+        );
+      }
+    }
+
     // Capture before overwriting, so the snapshot refresh check below is meaningful
     const currencyChanged = existingTransaction.currency !== currency;
 
@@ -133,6 +140,9 @@ export async function PUT(
     existingTransaction.date = new Date(date);
     existingTransaction.paymentMethod = paymentMethod;
     existingTransaction.notes = notes || "";
+    if (accountId !== undefined) {
+      existingTransaction.accountId = account ? account._id : null;
+    }
 
     // If currency changed or no snapshot existed, update snapshot
     if (currencyChanged || !existingTransaction.exchangeRateSnapshot) {
@@ -146,6 +156,7 @@ export async function PUT(
     }
 
     await existingTransaction.save();
+    await recordAudit({ userId: session.userId, action: "transaction.update", entityId: id, req });
 
     return NextResponse.json({
       success: true,
@@ -165,10 +176,15 @@ export async function PUT(
         date: existingTransaction.date.toISOString(),
         paymentMethod: existingTransaction.paymentMethod,
         notes: existingTransaction.notes,
+        ...(accountId !== undefined && {
+          account: account
+            ? { id: account._id.toString(), name: account.name, color: account.color }
+            : null,
+        }),
       },
     });
-  } catch (error: any) {
-    console.error("Update transaction error:", error);
+  } catch (error) {
+    logError("transactions.update_failed", error);
     return NextResponse.json(
       { success: false, error: "Failed to update transaction" },
       { status: 500 }
@@ -206,12 +222,20 @@ export async function DELETE(
       );
     }
 
+    await recordAudit({
+      userId: session.userId,
+      action: "transaction.delete",
+      entityId: id,
+      metadata: { amount: deleted.amount, currency: deleted.currency, type: deleted.type },
+      req,
+    });
+
     return NextResponse.json({
       success: true,
       message: "Transaction deleted successfully",
     });
-  } catch (error: any) {
-    console.error("Delete transaction error:", error);
+  } catch (error) {
+    logError("transactions.delete_failed", error);
     return NextResponse.json(
       { success: false, error: "Failed to delete transaction" },
       { status: 500 }

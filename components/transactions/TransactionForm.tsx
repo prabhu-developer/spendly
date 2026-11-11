@@ -14,14 +14,29 @@ import { apiClient } from "@/lib/api/client";
 import { SUPPORTED_CURRENCIES, SupportedCurrency } from "@/lib/currency/currencies";
 import { TransactionInput, transactionSchema } from "@/lib/validations/transaction";
 import { zodResolver } from "@hookform/resolvers/zod";
-import axios from "axios";
+import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/api/errors";
+import { isNetworkError, queueTransactionDraft } from "@/lib/offline";
 import { format } from "date-fns";
 import { CheckCircle2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm, type DefaultValues } from "react-hook-form";
 
+const NO_ACCOUNT = "none";
+
+export interface AccountOption {
+  id: string;
+  name: string;
+  currency: SupportedCurrency;
+  isArchived?: boolean;
+}
+
 interface TransactionFormProps {
   categories: Array<{ id: string; name: string; type: "income" | "expense" }>;
+  /** Optional accounts to link the transaction to */
+  accounts?: AccountOption[];
+  /** Needed to save drafts on this device while offline (create only) */
+  userId?: string;
   defaultCurrency: SupportedCurrency;
   initialData?: TransactionRecord | null;
   keepOpenAfterCreate?: boolean;
@@ -37,6 +52,7 @@ export interface TransactionRecord {
   type: "income" | "expense";
   categoryId?: string;
   category?: { id: string } | null;
+  account?: { id: string } | null;
   date: string | Date;
   paymentMethod?: TransactionInput["paymentMethod"];
   notes?: string;
@@ -54,11 +70,14 @@ function getDefaultValues(
     date: format(new Date(), "yyyy-MM-dd"),
     paymentMethod: "Other",
     notes: "",
+    accountId: null,
   };
 }
 
 export function TransactionForm({
   categories,
+  accounts = [],
+  userId,
   defaultCurrency,
   initialData,
   keepOpenAfterCreate = false,
@@ -83,7 +102,12 @@ export function TransactionForm({
   const selectedType = watch("type");
   const selectedCategory = watch("categoryId");
   const selectedPaymentMethod = watch("paymentMethod");
-  const transactionCurrency = initialData?.currency || defaultCurrency;
+  const selectedAccountId = watch("accountId");
+  const selectedAccount = accounts.find((a) => a.id === selectedAccountId);
+  // New transactions in an account use that account's currency; edits keep their own currency.
+  const transactionCurrency: SupportedCurrency =
+    initialData?.currency || selectedAccount?.currency || defaultCurrency;
+  const selectableAccounts = accounts.filter((a) => !a.isArchived || a.id === selectedAccountId);
   const availableCategories = categories.filter((category) => category.type === selectedType);
 
   useEffect(() => {
@@ -99,6 +123,7 @@ export function TransactionForm({
           : format(new Date(), "yyyy-MM-dd"),
         paymentMethod: initialData.paymentMethod || "Other",
         notes: initialData.notes || "",
+        accountId: initialData.account?.id ?? null,
       });
     } else {
       reset(getDefaultValues(categories, defaultCurrency));
@@ -120,26 +145,50 @@ export function TransactionForm({
     setSubmitError("");
     setSuccessMessage("");
 
+    const payload = {
+      ...data,
+      currency: transactionCurrency,
+      accountId: data.accountId || null,
+    };
+
+    const afterCreate = (message: string) => {
+      if (keepOpenAfterCreate) {
+        reset({ ...getDefaultValues(categories, defaultCurrency), accountId: payload.accountId });
+        setSuccessMessage(message);
+      }
+    };
+
+    // Offline (or the request never reached the server): keep the entry on this device.
+    const saveOffline = async () => {
+      if (isEditing || !userId) return false;
+      await queueTransactionDraft(userId, {
+        ...payload,
+        date: String(payload.date),
+        notes: payload.notes ?? "",
+      });
+      toast.success("Saved offline", {
+        description: "It will sync automatically when you're back online.",
+      });
+      onSuccess(undefined);
+      afterCreate("Saved on this device. It will sync when you reconnect. You can enter another one.");
+      return true;
+    };
+
+    if (!isEditing && typeof navigator !== "undefined" && !navigator.onLine) {
+      if (await saveOffline().catch(() => false)) return;
+    }
+
     try {
-      const payload = {
-        ...data,
-        currency: transactionCurrency,
-      };
       const response = isEditing && initialData?.id
         ? await apiClient.put(`/transactions/${initialData.id}`, payload)
         : await apiClient.post("/transactions", payload);
 
+      toast.success(isEditing ? "Transaction updated" : "Transaction added");
       onSuccess(response.data.transaction);
-      if (keepOpenAfterCreate && !isEditing) {
-        reset(getDefaultValues(categories, defaultCurrency));
-        setSuccessMessage("Transaction added. You can enter another one.");
-      }
+      if (!isEditing) afterCreate("Transaction added. You can enter another one.");
     } catch (error: unknown) {
-      console.error("Save transaction failed:", error);
-      const apiError = axios.isAxiosError<{ error?: string }>(error)
-        ? error.response?.data?.error
-        : undefined;
-      setSubmitError(apiError || "Could not save this transaction. Please try again.");
+      if (isNetworkError(error) && (await saveOffline().catch(() => false))) return;
+      setSubmitError(getErrorMessage(error, "Could not save this transaction. Please try again."));
     }
   };
 
@@ -151,7 +200,7 @@ export function TransactionForm({
       {successMessage && (
         <div
           role="status"
-          className="flex items-center gap-2 rounded-lg bg-[#EAF6F1] p-3 text-sm text-[#269B72]"
+          className="flex items-center gap-2 rounded-lg bg-income-light p-3 text-sm text-income-text"
         >
           <CheckCircle2 className="h-4 w-4 shrink-0" />
           {successMessage}
@@ -160,13 +209,13 @@ export function TransactionForm({
       {submitError && (
         <div
           role="alert"
-          className="rounded-lg border border-[#F07862]/30 bg-[#FDF1EE] p-3 text-sm text-[#F07862]"
+          className="rounded-lg border border-expense/30 bg-expense-light p-3 text-sm text-expense-text"
         >
           {submitError}
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-2 rounded-lg bg-[#F3F6FC] p-1">
+      <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted p-1">
         {(["expense", "income"] as const).map((type) => (
           <button
             key={type}
@@ -176,9 +225,9 @@ export function TransactionForm({
             className={`min-h-11 rounded-md text-sm font-semibold capitalize transition-all ${
               selectedType === type
                 ? type === "expense"
-                  ? "bg-white text-[#F07862] shadow-sm"
-                  : "bg-white text-[#269B72] shadow-sm"
-                : "text-[#8992A3] hover:text-[#202735]"
+                  ? "bg-white text-expense-text shadow-sm"
+                  : "bg-white text-income-text shadow-sm"
+                : "text-muted-foreground hover:text-main"
             }`}
           >
             {type}
@@ -194,9 +243,14 @@ export function TransactionForm({
           autoComplete="off"
           className="h-12"
           aria-invalid={Boolean(errors.title)}
+          aria-describedby={errors.title ? "title-error" : undefined}
           {...register("title")}
         />
-        {errors.title && <p className="text-sm text-[#F07862]">{errors.title.message}</p>}
+        {errors.title && (
+          <p id="title-error" role="alert" className="text-sm text-expense-text">
+            {errors.title.message}
+          </p>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -210,12 +264,17 @@ export function TransactionForm({
           placeholder="0.00"
           className="h-12"
           aria-invalid={Boolean(errors.amount)}
+          aria-describedby={errors.amount ? "amount-error" : "amount-currency"}
           {...register("amount", { valueAsNumber: true })}
         />
-        <p className="text-xs text-[#8992A3]">
+        <p id="amount-currency" className="text-xs text-muted-foreground">
           In {SUPPORTED_CURRENCIES[transactionCurrency].name} ({transactionCurrency})
         </p>
-        {errors.amount && <p className="text-sm text-[#F07862]">{errors.amount.message}</p>}
+        {errors.amount && (
+          <p id="amount-error" role="alert" className="text-sm text-expense-text">
+            {errors.amount.message}
+          </p>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -242,9 +301,33 @@ export function TransactionForm({
           </SelectContent>
         </Select>
         {errors.categoryId && (
-          <p className="text-sm text-[#F07862]">{errors.categoryId.message}</p>
+          <p className="text-sm text-expense-text">{errors.categoryId.message}</p>
         )}
       </div>
+
+      {(selectableAccounts.length > 0 || selectedAccountId) && (
+        <div className="space-y-2">
+          <Label htmlFor="accountId">Account (optional)</Label>
+          <Select
+            value={selectedAccountId || NO_ACCOUNT}
+            onValueChange={(value) =>
+              setValue("accountId", value === NO_ACCOUNT ? null : value, { shouldDirty: true })
+            }
+          >
+            <SelectTrigger id="accountId" className="h-12">
+              <SelectValue placeholder="No account" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_ACCOUNT}>No account</SelectItem>
+              {selectableAccounts.map((account) => (
+                <SelectItem key={account.id} value={account.id}>
+                  {account.name} · {account.currency}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       <div className="space-y-2">
         <Label htmlFor="paymentMethod">Payment Method</Label>
@@ -275,7 +358,7 @@ export function TransactionForm({
       <div className="space-y-2">
         <Label htmlFor="date">Date</Label>
         <Input id="date" type="date" className="h-12" {...register("date")} />
-        {errors.date && <p className="text-sm text-[#F07862]">{errors.date.message}</p>}
+        {errors.date && <p className="text-sm text-expense-text">{errors.date.message}</p>}
       </div>
 
       <div className="space-y-2">
@@ -284,14 +367,14 @@ export function TransactionForm({
           id="notes"
           placeholder="Additional details..."
           rows={3}
-          className="flex min-h-24 w-full resize-y rounded-lg border border-[#E8EDF4] bg-white px-3 py-3 text-sm text-[#202735] ring-offset-white placeholder:text-[#8992A3] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2878E5] disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex min-h-24 w-full resize-y rounded-lg border border-border bg-white px-3 py-3 text-sm text-main transition-[border-color,box-shadow] placeholder:text-muted-foreground hover:border-border-strong focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-50"
           aria-invalid={Boolean(errors.notes)}
           {...register("notes")}
         />
-        {errors.notes && <p className="text-sm text-[#F07862]">{errors.notes.message}</p>}
+        {errors.notes && <p className="text-sm text-expense-text">{errors.notes.message}</p>}
       </div>
 
-      <div className="flex flex-col-reverse gap-3 border-t border-[#E8EDF4] pt-4 sm:flex-row sm:justify-end">
+      <div className="flex flex-col-reverse gap-3 border-t border-border pt-4 sm:flex-row sm:justify-end">
         {onCancel && (
           <Button
             type="button"
@@ -305,7 +388,7 @@ export function TransactionForm({
         )}
         <Button
           type="submit"
-          className="min-h-11 w-full bg-[#2878E5] hover:bg-[#1F65C2] sm:w-auto"
+          className="min-h-11 w-full sm:w-auto"
           disabled={isSubmitting}
         >
           {isSubmitting ? "Saving..." : isEditing ? "Update Transaction" : "Add Transaction"}

@@ -39,7 +39,7 @@ export function ConfirmDialog({
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription className="mt-2 text-sm text-[#8992A3]">
+          <DialogDescription className="mt-2 text-sm text-muted-foreground">
             {description}
           </DialogDescription>
         </DialogHeader>
@@ -58,7 +58,7 @@ export function ConfirmDialog({
             onClick={onConfirm}
             disabled={isLoading}
           >
-            {isLoading ? "Processing..." : confirmLabel}
+            {isLoading ? "Working…" : confirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

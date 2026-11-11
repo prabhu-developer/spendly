@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth/session";
+import { requireUser, parseJson, internalError } from "@/lib/auth/guard";
+import { recordAudit } from "@/lib/audit";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import { Budget } from "@/models/Budget";
 import { Transaction } from "@/models/Transaction";
@@ -14,13 +15,11 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getCurrentUser(req);
-    if (!session || !session.userId) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireUser(req);
+    if ("response" in auth) return auth.response;
+    const { session, userObjectId } = auth;
 
     await connectToDatabase();
-    const userObjectId = new mongoose.Types.ObjectId(session.userId);
 
     const { searchParams } = new URL(req.url);
     const currentDate = new Date();
@@ -146,35 +145,23 @@ export async function GET(req: NextRequest) {
         currency: preferredCurrency,
       },
     });
-  } catch (error: any) {
-    console.error("Get budgets error:", error);
-    return NextResponse.json(
-      { success: false, error: "Failed to fetch budgets" },
-      { status: 500 }
-    );
+  } catch (error) {
+    return internalError("get_budgets_error", error, "Failed to fetch budgets", { route: "/api/budgets" });
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getCurrentUser(req);
-    if (!session || !session.userId) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireUser(req);
+    if ("response" in auth) return auth.response;
+    const { session, userObjectId } = auth;
 
-    const body = await req.json();
-    const validation = budgetSchema.safeParse(body);
-    if (!validation.success) {
-      return NextResponse.json(
-        { success: false, error: validation.error.issues[0]?.message || "Invalid budget data" },
-        { status: 400 }
-      );
-    }
+    const body = await parseJson(req, budgetSchema, "Invalid budget data");
+    if ("response" in body) return body.response;
 
-    const { categoryId, amount, currency, month, year } = validation.data;
+    const { categoryId, amount, currency, month, year } = body.data;
 
     await connectToDatabase();
-    const userObjectId = new mongoose.Types.ObjectId(session.userId);
 
     // Verify category exists
     if (!mongoose.Types.ObjectId.isValid(categoryId)) {
@@ -209,6 +196,14 @@ export async function POST(req: NextRequest) {
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
+    await recordAudit({
+      userId: session.userId,
+      action: "budget.save",
+      entityId: budget._id.toString(),
+      metadata: { month, year },
+      req,
+    });
+
     return NextResponse.json(
       {
         success: true,
@@ -223,11 +218,7 @@ export async function POST(req: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (error: any) {
-    console.error("Create/update budget error:", error);
-    return NextResponse.json(
-      { success: false, error: "Failed to save budget" },
-      { status: 500 }
-    );
+  } catch (error) {
+    return internalError("create_update_budget_error", error, "Failed to save budget", { route: "/api/budgets" });
   }
 }

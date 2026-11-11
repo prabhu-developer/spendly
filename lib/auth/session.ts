@@ -2,8 +2,10 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { SupportedCurrency } from "@/lib/currency/currencies";
+import { getAuthSecretValue } from "@/lib/env";
 
-export const AUTH_COOKIE_NAME = "spendly_session";
+import { AUTH_COOKIE_NAME } from "./session-cookie";
+export { AUTH_COOKIE_NAME };
 const DEFAULT_SESSION_DURATION = 7 * 24 * 60 * 60; // 7 days in seconds
 
 export interface SessionPayload {
@@ -11,15 +13,18 @@ export interface SessionPayload {
   email: string;
   name: string;
   preferredCurrency: SupportedCurrency;
+  /**
+   * Incremented on the user record when the password changes. Tokens carrying an
+   * older value are rejected on mutating requests and /api/auth/me (see guard.ts).
+   * Absent in tokens issued before this field existed → treated as 0.
+   */
+  sv?: number;
   [key: string]: unknown;
 }
 
 function getAuthSecret(): Uint8Array {
-  const secret = process.env.AUTH_SECRET;
-  if (!secret || secret.length < 32) {
-    throw new Error("AUTH_SECRET must be configured with at least 32 characters");
-  }
-  return new TextEncoder().encode(secret);
+  // Validated lazily (first request), so builds don't need secrets.
+  return new TextEncoder().encode(getAuthSecretValue());
 }
 
 /**
@@ -39,7 +44,8 @@ export async function createSessionToken(payload: SessionPayload): Promise<strin
 export async function verifySessionToken(token: string): Promise<SessionPayload | null> {
   const secret = getAuthSecret();
   try {
-    const { payload } = await jwtVerify(token, secret);
+    const { payload } = await jwtVerify(token, secret, { algorithms: ["HS256"] });
+    if (typeof payload.userId !== "string" || payload.userId.length === 0) return null;
     return payload as unknown as SessionPayload;
   } catch {
     return null;

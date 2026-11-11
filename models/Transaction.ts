@@ -19,6 +19,10 @@ export interface ITransaction extends Document {
   paymentMethod: string;
   notes?: string;
   exchangeRateSnapshot?: IExchangeRateSnapshot;
+  /** Optional: the account this transaction moved money in/out of. Null = unassigned (legacy data). */
+  accountId?: mongoose.Types.ObjectId | null;
+  /** Client-generated idempotency key (offline draft sync). Unique per user when present. */
+  clientRequestId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -88,6 +92,15 @@ const TransactionSchema = new Schema<ITransaction>(
       type: ExchangeRateSnapshotSchema,
       required: false,
     },
+    accountId: {
+      type: Schema.Types.ObjectId,
+      ref: "Account",
+      default: null,
+    },
+    clientRequestId: {
+      type: String,
+      maxlength: 64,
+    },
   },
   {
     timestamps: true,
@@ -99,6 +112,13 @@ TransactionSchema.index({ userId: 1, date: -1 });
 TransactionSchema.index({ userId: 1, type: 1, date: -1 });
 // Category-filtered lists sorted by date, and budget spend lookups
 TransactionSchema.index({ userId: 1, categoryId: 1, date: -1 });
+// Account-filtered lists and per-account balance aggregation
+TransactionSchema.index({ userId: 1, accountId: 1, date: -1 });
+// Idempotent offline-draft sync: one transaction per (user, clientRequestId)
+TransactionSchema.index(
+  { userId: 1, clientRequestId: 1 },
+  { unique: true, partialFilterExpression: { clientRequestId: { $type: "string" } } }
+);
 
 export const Transaction: Model<ITransaction> =
   mongoose.models.Transaction || mongoose.model<ITransaction>("Transaction", TransactionSchema);

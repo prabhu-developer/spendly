@@ -59,15 +59,15 @@ export function RecentTransactionsList({
   };
 
   return (
-    <div className="rounded-xl border border-[#E8EDF4] bg-white p-5 shadow-sm">
+    <div className="rounded-xl border border-border bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between pb-4">
         <div>
-          <h2 className="text-base font-semibold text-[#202735]">Recent Transactions</h2>
-          <p className="text-xs text-[#8992A3]">Latest financial activities</p>
+          <h2 className="text-base font-semibold text-main">Recent Transactions</h2>
+          <p className="text-xs text-muted-foreground">Latest financial activities</p>
         </div>
         <Link
           href="/dashboard/transactions"
-          className="inline-flex items-center gap-1 text-xs font-medium text-[#2878E5] hover:underline"
+          className="inline-flex items-center gap-1 text-xs font-medium text-primary-text hover:underline"
         >
           View all
           <ArrowRight className="h-3.5 w-3.5" />
@@ -75,7 +75,7 @@ export function RecentTransactionsList({
       </div>
 
       {transactions.length === 0 ? (
-        <div className="py-12 text-center text-xs text-[#8992A3]">
+        <div className="py-12 text-center text-xs text-muted-foreground">
           No transactions recorded yet. Click &quot;Add Transaction&quot; to log your first income or expense!
         </div>
       ) : (
@@ -84,7 +84,7 @@ export function RecentTransactionsList({
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="border-b border-[#E8EDF4] text-[#8992A3]">
+                <tr className="border-b border-border text-muted-foreground">
                   <th className="pb-3 font-medium">Transaction</th>
                   <th className="pb-3 font-medium">Category</th>
                   <th className="pb-3 font-medium">Date</th>
@@ -93,16 +93,16 @@ export function RecentTransactionsList({
                   <th className="pb-3 text-right font-medium">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#E8EDF4]">
+              <tbody className="divide-y divide-border">
                 {transactions.map((t) => {
                   const isIncome = t.type === "income";
                   return (
-                    <tr key={t.id} className="transition-colors hover:bg-[#F3F6FC]/60">
+                    <tr key={t.id} className="transition-colors hover:bg-muted/60">
                       <td className="py-3">
                         <div className="flex items-center gap-3">
                           <div
                             className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-                              isIncome ? "bg-[#EAF6F1] text-[#269B72]" : "bg-[#FDF1EE] text-[#F07862]"
+                              isIncome ? "bg-income-light text-income-text" : "bg-expense-light text-expense-text"
                             }`}
                           >
                             {isIncome ? (
@@ -112,9 +112,9 @@ export function RecentTransactionsList({
                             )}
                           </div>
                           <div>
-                            <span className="font-medium text-[#202735]">{t.title}</span>
+                            <span className="font-medium text-main">{t.title}</span>
                             {t.notes && (
-                              <p className="text-[11px] text-[#8992A3] truncate max-w-xs">{t.notes}</p>
+                              <p className="text-[11px] text-muted-foreground truncate max-w-xs">{t.notes}</p>
                             )}
                           </div>
                         </div>
@@ -134,16 +134,16 @@ export function RecentTransactionsList({
                         </Badge>
                       </td>
 
-                      <td className="py-3 text-[#8992A3]">
+                      <td className="py-3 text-muted-foreground">
                         {format(new Date(t.date), "dd MMM yyyy")}
                       </td>
 
-                      <td className="py-3 text-[#8992A3]">{t.paymentMethod || "Other"}</td>
+                      <td className="py-3 text-muted-foreground">{t.paymentMethod || "Other"}</td>
 
                       <td className="py-3 text-right">
                         <span
                           className={`font-semibold ${
-                            isIncome ? "text-[#269B72]" : "text-[#F07862]"
+                            isIncome ? "text-income-text" : "text-expense-text"
                           }`}
                         >
                           {isIncome ? "+" : "-"}
@@ -156,7 +156,7 @@ export function RecentTransactionsList({
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 text-[#8992A3] hover:text-[#2878E5]"
+                            className="h-7 w-7 text-muted-foreground hover:text-primary-text"
                             onClick={() => onEdit(t)}
                             title="Edit"
                           >
@@ -165,7 +165,7 @@ export function RecentTransactionsList({
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 text-[#8992A3] hover:text-[#F07862]"
+                            className="h-7 w-7 text-muted-foreground hover:text-expense-text"
                             onClick={() => setDeleteTargetId(t.id)}
                             title="Delete"
                           >
@@ -181,7 +181,7 @@ export function RecentTransactionsList({
           </div>
 
           {/* Mobile List View */}
-          <div className="divide-y divide-[#E8EDF4] md:hidden">
+          <div className="divide-y divide-border md:hidden">
             {transactions.map((t) => {
               const isIncome = t.type === "income";
               return (
@@ -189,7 +189,7 @@ export function RecentTransactionsList({
                   <div className="flex items-center gap-3">
                     <div
                       className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                        isIncome ? "bg-[#EAF6F1] text-[#269B72]" : "bg-[#FDF1EE] text-[#F07862]"
+                        isIncome ? "bg-income-light text-income-text" : "bg-expense-light text-expense-text"
                       }`}
                     >
                       {isIncome ? (
@@ -199,13 +199,13 @@ export function RecentTransactionsList({
                       )}
                     </div>
                     <div>
-                      <p className="text-xs font-semibold text-[#202735]">{t.title}</p>
+                      <p className="text-xs font-semibold text-main">{t.title}</p>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[11px] text-[#8992A3]">
+                        <span className="text-[11px] text-muted-foreground">
                           {format(new Date(t.date), "dd MMM")}
                         </span>
-                        <span className="text-[11px] text-[#8992A3]">&bull;</span>
-                        <span className="text-[11px] text-[#8992A3]">{t.category?.name}</span>
+                        <span className="text-[11px] text-muted-foreground">&bull;</span>
+                        <span className="text-[11px] text-muted-foreground">{t.category?.name}</span>
                       </div>
                     </div>
                   </div>
@@ -213,7 +213,7 @@ export function RecentTransactionsList({
                   <div className="flex items-center gap-2">
                     <span
                       className={`text-xs font-semibold ${
-                        isIncome ? "text-[#269B72]" : "text-[#F07862]"
+                        isIncome ? "text-income-text" : "text-expense-text"
                       }`}
                     >
                       {isIncome ? "+" : "-"}
@@ -222,7 +222,7 @@ export function RecentTransactionsList({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 text-[#8992A3]"
+                      className="h-7 w-7 text-muted-foreground"
                       onClick={() => onEdit(t)}
                     >
                       <Edit2 className="h-3.5 w-3.5" />
@@ -230,7 +230,7 @@ export function RecentTransactionsList({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 text-[#8992A3]"
+                      className="h-7 w-7 text-muted-foreground"
                       onClick={() => setDeleteTargetId(t.id)}
                     >
                       <Trash2 className="h-3.5 w-3.5" />

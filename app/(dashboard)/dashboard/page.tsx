@@ -35,9 +35,9 @@ function DashboardChartSkeleton() {
       aria-label="Loading financial charts"
       aria-busy="true"
     >
-      <div className="h-80 animate-pulse rounded-xl border border-[#E8EDF4] bg-white lg:col-span-2" />
-      <div className="h-80 animate-pulse rounded-xl border border-[#E8EDF4] bg-white" />
-      <div className="h-64 animate-pulse rounded-xl border border-[#E8EDF4] bg-white lg:col-span-3" />
+      <div className="h-80 animate-pulse rounded-xl border border-border bg-white lg:col-span-2" />
+      <div className="h-80 animate-pulse rounded-xl border border-border bg-white" />
+      <div className="h-64 animate-pulse rounded-xl border border-border bg-white lg:col-span-3" />
     </div>
   );
 }
@@ -168,15 +168,15 @@ export default function DashboardOverviewPage() {
       {/* Top Banner & Quick Refresh */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-[#202735]">Financial Overview</h2>
-          <p className="text-xs text-[#8992A3]">
+          <h2 className="text-xl font-bold tracking-tight text-main">Financial Overview</h2>
+          <p className="text-xs text-muted-foreground">
             Track your cash flow, analyze spending patterns, and maintain monthly targets.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           {reportsData?.isEstimate && (
-            <span className="rounded-full bg-[#FEF8EC] px-2.5 py-1 text-[11px] font-medium text-[#E9B949]">
+            <span className="rounded-full bg-warning-light px-2.5 py-1 text-[11px] font-medium text-warning-foreground">
               Fallback currency rates active
             </span>
           )}
@@ -184,7 +184,7 @@ export default function DashboardOverviewPage() {
             variant="outline"
             size="sm"
             onClick={handleRefresh}
-            className="h-8 gap-1.5 border-[#E8EDF4] text-xs text-[#8992A3] hover:text-[#202735]"
+            className="h-8 gap-1.5 border-border text-xs text-muted-foreground hover:text-main"
           >
             <RefreshCw className="h-3.5 w-3.5" />
             Refresh
@@ -195,14 +195,14 @@ export default function DashboardOverviewPage() {
       {isReportsError && (
         <div
           role="alert"
-          className="flex flex-col gap-2 rounded-lg border border-[#F07862]/30 bg-[#FDF1EE] p-4 text-sm text-[#202735] sm:flex-row sm:items-center sm:justify-between"
+          className="flex flex-col gap-2 rounded-lg border border-expense/30 bg-expense-light p-4 text-sm text-main sm:flex-row sm:items-center sm:justify-between"
         >
           <span>Up-to-date financial totals are unavailable. Please try again.</span>
           <Button
             variant="outline"
             size="sm"
             onClick={() => void refetchReports()}
-            className="w-fit border-[#F07862]/30"
+            className="w-fit border-expense/30"
           >
             Retry summary
           </Button>
@@ -212,14 +212,14 @@ export default function DashboardOverviewPage() {
       {isTxError && (
         <div
           role="alert"
-          className="rounded-lg border border-[#F07862]/30 bg-[#FDF1EE] p-4 text-sm text-[#202735]"
+          className="rounded-lg border border-expense/30 bg-expense-light p-4 text-sm text-main"
         >
           Recent transactions are unavailable. Refresh to try again.
           <Button
             variant="outline"
             size="sm"
             onClick={() => void refetchTx()}
-            className="ml-3 border-[#F07862]/30"
+            className="ml-3 border-expense/30"
           >
             Retry
           </Button>
@@ -235,7 +235,7 @@ export default function DashboardOverviewPage() {
           {Array.from({ length: 4 }, (_, index) => (
             <div
               key={index}
-              className="h-32 animate-pulse rounded-xl border border-[#E8EDF4] bg-white"
+              className="h-32 animate-pulse rounded-xl border border-border bg-white"
             />
           ))}
         </div>
@@ -247,8 +247,8 @@ export default function DashboardOverviewPage() {
               title="Total Balance"
               amount={totalBalance}
               currency={preferredCurrency}
-              icon={<Wallet className="h-5 w-5 text-[#2878E5]" />}
-              iconBgColor="bg-[#EBF3FC]"
+              icon={<Wallet className="h-5 w-5 text-primary-text" />}
+              iconBgColor="bg-primary-light"
               type="default"
             />
 
@@ -257,8 +257,8 @@ export default function DashboardOverviewPage() {
               amount={summary.totalIncome}
               currency={preferredCurrency}
               changePercent={summary.incomeChange}
-              icon={<TrendingUp className="h-5 w-5 text-[#269B72]" />}
-              iconBgColor="bg-[#EAF6F1]"
+              icon={<TrendingUp className="h-5 w-5 text-income-text" />}
+              iconBgColor="bg-income-light"
               type="income"
             />
 
@@ -267,8 +267,8 @@ export default function DashboardOverviewPage() {
               amount={summary.totalExpenses}
               currency={preferredCurrency}
               changePercent={summary.expensesChange}
-              icon={<TrendingDown className="h-5 w-5 text-[#F07862]" />}
-              iconBgColor="bg-[#FDF1EE]"
+              icon={<TrendingDown className="h-5 w-5 text-expense-text" />}
+              iconBgColor="bg-expense-light"
               type="expense"
             />
 
@@ -277,8 +277,8 @@ export default function DashboardOverviewPage() {
               amount={summary.totalSavings}
               currency={preferredCurrency}
               changePercent={summary.savingsChange}
-              icon={<PiggyBank className="h-5 w-5 text-[#2878E5]" />}
-              iconBgColor="bg-[#EBF3FC]"
+              icon={<PiggyBank className="h-5 w-5 text-primary-text" />}
+              iconBgColor="bg-primary-light"
               type="savings"
             />
           </div>
@@ -295,7 +295,7 @@ export default function DashboardOverviewPage() {
       {/* Recent Transactions List */}
       {isTxLoading ? (
         <div
-          className="h-64 animate-pulse rounded-xl border border-[#E8EDF4] bg-white"
+          className="h-64 animate-pulse rounded-xl border border-border bg-white"
           aria-label="Loading recent transactions"
           aria-busy="true"
         />

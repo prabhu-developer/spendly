@@ -51,16 +51,16 @@ export function DashboardCharts({
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="rounded-lg border border-[#E8EDF4] bg-white p-3 shadow-lg">
-          <p className="text-xs font-semibold text-[#202735] mb-1.5">{label}</p>
+        <div className="rounded-lg border border-border bg-white p-3 shadow-lg">
+          <p className="text-xs font-semibold text-main mb-1.5">{label}</p>
           {payload.map((entry: any, index: number) => (
             <div key={`item-${index}`} className="flex items-center gap-2 text-xs">
               <span
                 className="h-2 w-2 rounded-full"
                 style={{ backgroundColor: entry.color || entry.stroke }}
               />
-              <span className="text-[#8992A3]">{entry.name}:</span>
-              <span className="font-semibold text-[#202735]">
+              <span className="text-muted-foreground">{entry.name}:</span>
+              <span className="font-semibold text-main">
                 {formatCurrency(entry.value, currency)}
               </span>
             </div>
@@ -75,13 +75,13 @@ export function DashboardCharts({
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
-        <div className="rounded-lg border border-[#E8EDF4] bg-white p-3 shadow-lg">
-          <p className="text-xs font-semibold text-[#202735] mb-1">{data.name}</p>
-          <p className="text-xs text-[#8992A3]">
-            Amount: <span className="font-semibold text-[#202735]">{formatCurrency(data.amount, currency)}</span>
+        <div className="rounded-lg border border-border bg-white p-3 shadow-lg">
+          <p className="text-xs font-semibold text-main mb-1">{data.name}</p>
+          <p className="text-xs text-muted-foreground">
+            Amount: <span className="font-semibold text-main">{formatCurrency(data.amount, currency)}</span>
           </p>
-          <p className="text-xs text-[#8992A3]">
-            Share: <span className="font-semibold text-[#2878E5]">{data.percentage}%</span>
+          <p className="text-xs text-muted-foreground">
+            Share: <span className="font-semibold text-primary-text">{data.percentage}%</span>
           </p>
         </div>
       );
@@ -92,7 +92,7 @@ export function DashboardCharts({
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       {/* 1. Income vs Expense Bar Chart */}
-      <Card className="col-span-1 lg:col-span-2 border border-[#E8EDF4]">
+      <Card className="col-span-1 lg:col-span-2 border border-border">
         <CardHeader className="pb-2">
           <CardTitle className="text-base font-semibold">Income vs Expense</CardTitle>
           <CardDescription className="text-xs">
@@ -117,7 +117,7 @@ export function DashboardCharts({
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex h-full items-center justify-center text-xs text-[#8992A3]">
+              <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
                 No financial history available yet
               </div>
             )}
@@ -126,7 +126,7 @@ export function DashboardCharts({
       </Card>
 
       {/* 2. Expense Category Breakdown Donut Chart */}
-      <Card className="col-span-1 border border-[#E8EDF4]">
+      <Card className="col-span-1 border border-border">
         <CardHeader className="pb-2">
           <CardTitle className="text-base font-semibold">Expense Breakdown</CardTitle>
           <CardDescription className="text-xs">
@@ -156,7 +156,7 @@ export function DashboardCharts({
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex h-full items-center justify-center text-xs text-[#8992A3]">
+              <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
                 No expenses logged in this period
               </div>
             )}
@@ -172,9 +172,9 @@ export function DashboardCharts({
                       className="h-2.5 w-2.5 rounded-full"
                       style={{ backgroundColor: cat.color }}
                     />
-                    <span className="font-medium text-[#202735]">{cat.name}</span>
+                    <span className="font-medium text-main">{cat.name}</span>
                   </div>
-                  <span className="text-[#8992A3]">{cat.percentage}%</span>
+                  <span className="text-muted-foreground">{cat.percentage}%</span>
                 </div>
               ))}
             </div>
@@ -183,7 +183,7 @@ export function DashboardCharts({
       </Card>
 
       {/* 3. Monthly Spending Trend Area Chart */}
-      <Card className="col-span-1 lg:col-span-3 border border-[#E8EDF4]">
+      <Card className="col-span-1 lg:col-span-3 border border-border">
         <CardHeader className="pb-2">
           <CardTitle className="text-base font-semibold">Net Savings Trend</CardTitle>
           <CardDescription className="text-xs">
@@ -217,7 +217,7 @@ export function DashboardCharts({
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex h-full items-center justify-center text-xs text-[#8992A3]">
+              <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
                 No savings data available
               </div>
             )}

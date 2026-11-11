@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth/session";
+import { Category } from "@/models/Category";
+import { requireUser, parseJson, internalError } from "@/lib/auth/guard";
+import { recordAudit } from "@/lib/audit";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import { Budget } from "@/models/Budget";
 import { budgetSchema } from "@/lib/validations/budget";
@@ -11,28 +13,20 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const session = await getCurrentUser(req);
-    if (!session || !session.userId) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireUser(req);
+    if ("response" in auth) return auth.response;
+    const { session, userObjectId } = auth;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json({ success: false, error: "Invalid budget ID" }, { status: 400 });
     }
 
-    const body = await req.json();
-    const validation = budgetSchema.safeParse(body);
-    if (!validation.success) {
-      return NextResponse.json(
-        { success: false, error: validation.error.issues[0]?.message || "Invalid input" },
-        { status: 400 }
-      );
-    }
+    const body = await parseJson(req, budgetSchema);
+    if ("response" in body) return body.response;
 
-    const { amount, currency, month, year, categoryId } = validation.data;
+    const { amount, currency, month, year, categoryId } = body.data;
 
     await connectToDatabase();
-    const userObjectId = new mongoose.Types.ObjectId(session.userId);
 
     const budget = await Budget.findOne({
       _id: id,
@@ -46,12 +40,40 @@ export async function PUT(
       );
     }
 
+    // Authorization: the target category must be the user's own (or a system category)
+    if (!mongoose.Types.ObjectId.isValid(categoryId)) {
+      return NextResponse.json({ success: false, error: "Invalid category ID" }, { status: 400 });
+    }
+    const category = await Category.findOne({
+      _id: categoryId,
+      $or: [{ userId: userObjectId }, { isSystem: true }],
+    })
+      .select("_id")
+      .lean();
+    if (!category) {
+      return NextResponse.json(
+        { success: false, error: "Selected category does not exist" },
+        { status: 400 }
+      );
+    }
+
     budget.amount = amount;
     budget.currency = currency;
     budget.month = month;
     budget.year = year;
     budget.categoryId = new mongoose.Types.ObjectId(categoryId);
-    await budget.save();
+    try {
+      await budget.save();
+    } catch (error) {
+      if ((error as { code?: number })?.code === 11000) {
+        return NextResponse.json(
+          { success: false, error: "A budget for this category and month already exists" },
+          { status: 409 }
+        );
+      }
+      throw error;
+    }
+    await recordAudit({ userId: session.userId, action: "budget.save", entityId: id, req });
 
     return NextResponse.json({
       success: true,
@@ -63,12 +85,8 @@ export async function PUT(
         year: budget.year,
       },
     });
-  } catch (error: any) {
-    console.error("Update budget error:", error);
-    return NextResponse.json(
-      { success: false, error: "Failed to update budget" },
-      { status: 500 }
-    );
+  } catch (error) {
+    return internalError("update_budget_error", error, "Failed to update budget", { route: "/api/budgets/[id]" });
   }
 }
 
@@ -78,17 +96,15 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const session = await getCurrentUser(req);
-    if (!session || !session.userId) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireUser(req);
+    if ("response" in auth) return auth.response;
+    const { session, userObjectId } = auth;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json({ success: false, error: "Invalid budget ID" }, { status: 400 });
     }
 
     await connectToDatabase();
-    const userObjectId = new mongoose.Types.ObjectId(session.userId);
 
     const deleted = await Budget.findOneAndDelete({
       _id: id,
@@ -102,15 +118,13 @@ export async function DELETE(
       );
     }
 
+    await recordAudit({ userId: session.userId, action: "budget.delete", entityId: id, req });
+
     return NextResponse.json({
       success: true,
       message: "Budget deleted successfully",
     });
-  } catch (error: any) {
-    console.error("Delete budget error:", error);
-    return NextResponse.json(
-      { success: false, error: "Failed to delete budget" },
-      { status: 500 }
-    );
+  } catch (error) {
+    return internalError("delete_budget_error", error, "Failed to delete budget", { route: "/api/budgets/[id]" });
   }
 }

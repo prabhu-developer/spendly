@@ -32,6 +32,7 @@ export const SUPPORTED_CURRENCIES: Record<SupportedCurrency, CurrencyConfig> = {
 };
 
 export const CURRENCY_LIST = Object.values(SUPPORTED_CURRENCIES);
+export const SUPPORTED_CURRENCY_CODES = Object.keys(SUPPORTED_CURRENCIES) as SupportedCurrency[];
 
 export function isValidCurrency(code: unknown): code is SupportedCurrency {
   return (

@@ -11,6 +11,7 @@ import {
   TransactionForm,
   TransactionRecord,
 } from "@/components/transactions/TransactionForm";
+import { useAccounts } from "@/lib/api/queries";
 
 export interface TransactionDialogProps {
   open: boolean;
@@ -29,6 +30,7 @@ export function TransactionDialog({
   initialData,
   onSuccess,
 }: TransactionDialogProps) {
+  const { data: sheet } = useAccounts();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[480px]">
@@ -37,6 +39,7 @@ export function TransactionDialog({
         </DialogHeader>
         <TransactionForm
           categories={categories}
+          accounts={sheet?.accounts}
           defaultCurrency={defaultCurrency}
           initialData={initialData}
           onSuccess={() => {

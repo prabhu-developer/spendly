@@ -1,26 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth/session";
+import { requireUser, parseJson, internalError } from "@/lib/auth/guard";
+import { recordAudit } from "@/lib/audit";
+import { escapeRegex } from "@/lib/utils";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import { Category } from "@/models/Category";
 import { categorySchema } from "@/lib/validations/category";
-import mongoose from "mongoose";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getCurrentUser(req);
-    if (!session || !session.userId) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireUser(req);
+    if ("response" in auth) return auth.response;
+    const { session } = auth;
 
     await connectToDatabase();
-    const userObjectId = new mongoose.Types.ObjectId(session.userId);
+    const { userObjectId } = auth;
 
     // Retrieve user categories OR system categories
     const categories = await Category.find({
       $or: [{ userId: userObjectId }, { isSystem: true }],
-    }).sort({ name: 1 });
+    })
+      .select("name type icon color isSystem userId")
+      .sort({ name: 1 })
+      .lean();
 
     return NextResponse.json({
       success: true,
@@ -34,41 +37,30 @@ export async function GET(req: NextRequest) {
         isOwner: cat.userId?.toString() === session.userId,
       })),
     });
-  } catch (error: any) {
-    console.error("Get categories error:", error);
-    return NextResponse.json(
-      { success: false, error: "Failed to fetch categories" },
-      { status: 500 }
-    );
+  } catch (error) {
+    return internalError("get_categories_error", error, "Failed to fetch categories", { route: "/api/categories" });
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getCurrentUser(req);
-    if (!session || !session.userId) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireUser(req);
+    if ("response" in auth) return auth.response;
+    const { session } = auth;
 
-    const body = await req.json();
-    const validation = categorySchema.safeParse(body);
-    if (!validation.success) {
-      return NextResponse.json(
-        { success: false, error: validation.error.issues[0]?.message || "Invalid input" },
-        { status: 400 }
-      );
-    }
-
-    const { name, type, icon, color } = validation.data;
+    const body = await parseJson(req, categorySchema);
+    if ("response" in body) return body.response;
+    const { name, type, icon, color } = body.data;
 
     await connectToDatabase();
-    const userObjectId = new mongoose.Types.ObjectId(session.userId);
+    const { userObjectId } = auth;
 
     // Check if category name already exists for this user and type
     const existing = await Category.findOne({
       userId: userObjectId,
       type,
-      name: { $regex: new RegExp(`^${name}$`, "i") },
+      // Escaped: category names are user input
+      name: { $regex: new RegExp(`^${escapeRegex(name)}$`, "i") },
     });
 
     if (existing) {
@@ -87,6 +79,13 @@ export async function POST(req: NextRequest) {
       isSystem: false,
     });
 
+    await recordAudit({
+      userId: session.userId,
+      action: "category.create",
+      entityId: newCategory._id.toString(),
+      req,
+    });
+
     return NextResponse.json(
       {
         success: true,
@@ -102,11 +101,7 @@ export async function POST(req: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (error: any) {
-    console.error("Create category error:", error);
-    return NextResponse.json(
-      { success: false, error: "Failed to create category" },
-      { status: 500 }
-    );
+  } catch (error) {
+    return internalError("create_category_error", error, "Failed to create category", { route: "/api/categories" });
   }
 }
